@@ -12,7 +12,7 @@
 namespace MLS{
 
   Mesh::Mesh(){};
-  Mesh::Mesh(int arg_ncells, int AnGhost, double Ax_min, double Ax_max,double Ay_min,double Ay_max,double arg_cfl, Cell (*s_x)(double x, double y, double t), Cell (*s_y)(double x, double y, double t), Cell (*level_set)(double x, double y, double Atime)) : ncells(arg_ncells),nGhost(AnGhost), x_min(Ax_min),x_max(Ax_max),y_min(Ay_min),y_max(Ay_max),cfl(arg_cfl), iter_counter(0),time(0), speed_x(s_x), speed_y(s_y)
+  Mesh::Mesh(double AT_max,int arg_ncells, int AnGhost, double Ax_min, double Ax_max,double Ay_min,double Ay_max,double arg_cfl, double (*s_x)(double x, double y, double t, double T), double (*s_y)(double x, double y, double t, double T), Cell (*level_set)(double x, double y, double time, double T_max)) :T_max(AT_max), ncells(arg_ncells),nGhost(AnGhost), x_min(Ax_min),x_max(Ax_max),y_min(Ay_min),y_max(Ay_max),cfl(arg_cfl), iter_counter(0),time(0), speed_x(s_x), speed_y(s_y)
   {
      
     dx = (x_max-x_min)/(double)ncells;
@@ -35,7 +35,7 @@ namespace MLS{
 	yaxis(j) = y_min + y_counter*dy;
 	y_counter++;
 
-	MLS_data(i,j) = level_set(xaxis(i),yaxis(j),time);
+	MLS_data(i,j) = level_set(xaxis(i),yaxis(j),time,T_max);
 
       }
       y_counter=0;
@@ -57,9 +57,9 @@ namespace MLS{
     for(int row=nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
      
-	speedtemp_x = MLS_data(row,col).phi_u;
-      
-	speedtemp_y = MLS_data(row,col).phi_v;
+	speedtemp_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	//std::cout << speedtemp_x << std::endl;
+	speedtemp_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
       
 	if(fabs(speedtemp_x) > fabs(speed_x)){
 	  speed_x = speedtemp_x;
@@ -70,8 +70,8 @@ namespace MLS{
       }
     }
   
-    min_coef = std::min(fabs(dx/speed_x),fabs(dy/speed_y));
-    double dt;
+    min_coef = std::min(dx/fabs(speed_x),dy/fabs(speed_y));
+    
     //If time < 5 then dt = 0.2
   
     if(iter_counter < 10){
@@ -89,13 +89,68 @@ namespace MLS{
   
   };
   
-  void Mesh::advect_level_set(){};
+  void Mesh::advect_level_set(){
+
+    std::cout << "ADVECTING" << "\n";
+
+    double phi;
+    double phi_xdir,phi_ydir;
+    double phi_xdir_plus,phi_xdir_minus;
+    double phi_ydir_plus,phi_ydir_minus;
+    blitz::Array<double,2>phi_new;
+    double obj_speed_x, obj_speed_y;
+    
+    phi_new.resize(ncells+2*nGhost,ncells+2*nGhost);
+
+    for(int row = nGhost; row < nGhost+ncells; row++){
+      for(int col = nGhost; col < nGhost+ncells; col++){
+	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	phi = MLS_data(col,row).phi;
+	phi_xdir_plus = MLS_data(col+1,row).phi;
+	phi_xdir_minus = MLS_data(col-1,row).phi;
+	phi_ydir_plus = MLS_data(col,row+1).phi;
+	phi_ydir_minus = MLS_data(col,row-1).phi;
+
+	if(obj_speed_x < 0){
+	  phi_xdir = (phi_xdir_plus-phi)/dx; 
+	}else if(obj_speed_x == 0){
+	  phi_xdir = 0.0;
+	}else if(obj_speed_x > 0){
+	  phi_xdir = (phi-phi_xdir_minus)/dx; 
+	}else{
+	  std::cout << "Advection of level_set. Something went wrong" <<"\n";
+	}
+      
+	if(obj_speed_y <0){
+	  phi_ydir = (phi_ydir_plus-phi)/dy;
+	}else if(obj_speed_y == 0){
+	  phi_ydir = 0;
+	}else if(obj_speed_y >0){
+	  phi_ydir = (phi-phi_ydir_minus)/dy;
+	}else{
+	  std::cout << "Advection of Level_set" <<"\n";
+	}
+	// phi_ydir = 0;
+	phi = phi - dt*(obj_speed_x*phi_xdir+obj_speed_y*phi_ydir);
+	phi_new(col,row) = phi;
+      }
+    }
+
+    for(int row = nGhost; row < nGhost+ncells; row++){
+      for(int col = nGhost; col < nGhost+ncells; col++){
+	MLS_data(col,row).phi = phi_new(col,row);
+      }
+    }
+
+
+};
 
   void Mesh::save_to_file(std::string filename)const{
 
     std::string dir = "data/";
     std::stringstream ss;
-    ss << dir << filename << time;
+    ss << dir << filename << iter_counter;
     std::string tmppath = ss.str();
   
     std::cout << "CREATING FILE \n";

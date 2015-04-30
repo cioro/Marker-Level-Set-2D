@@ -23,6 +23,7 @@ namespace MLS{
     double x_min,x_max,y_min,y_max;
     double dt;
     double time;
+    double T_max;
     int iter_counter;
  
 
@@ -30,12 +31,12 @@ namespace MLS{
     blitz::Array<double,1> xaxis;
     blitz::Array<double,1> yaxis;
 
-    Cell (*speed_x)(double x, double y, double t);
-    Cell (*speed_y)(double x, double y, double t);
+    double (*speed_x)(double x, double y, double t,double T);
+    double (*speed_y)(double x, double y, double t,double T);
   
     //constructor
     Mesh();
-    Mesh(int ncells,int nGhost, double x_min, double x_max,double y_min,double y_max,double cfl, Cell (*speed_x)(double x, double y, double t), Cell (*speed_y)(double x, double y, double t), Cell (*level_set)(double x, double y,double Atime));
+    Mesh(double T, int ncells,int nGhost, double x_min, double x_max,double y_min,double y_max,double cfl, double (*speed_x)(double x, double y, double t, double T), double (*speed_y)(double x, double y, double t,double T), Cell (*level_set)(double x, double y,double time,double T));
 
     ~Mesh();
     void Calculate_dt();
