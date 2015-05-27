@@ -43,7 +43,10 @@ namespace MLS{
     void applyBC();
     void advect_level_set();
     void save_to_file(std::string name)const;
-
+    double D_minus(int i, int j, std::string dir);
+    double D_plus(int i, int j, std::string dir);
+    double WENO(int i, int j, std::string stencil, std::string dir);
+    void advect_WENO();
 
   };
 }

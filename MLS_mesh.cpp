@@ -48,13 +48,13 @@ namespace MLS{
 
   void Mesh::Calculate_dt(){
 
-    double speed_x=0.0;
-    double speedtemp_x=0.0;
-    double speed_y=0.0;
-    double speedtemp_y=0.0;
+    double speed_x =0.0;
+    double speedtemp_x =0.0;
+    double speed_y =0.0;
+    double speedtemp_y =0.0;
     double min_coef = 0.0;//This is min of (S_x/dx,S_y/dy)-The minimum of the wave speed over the space step.
  
-    for(int row=nGhost; row < nGhost+ncells; row++){
+    for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
      
 	speedtemp_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
@@ -78,10 +78,10 @@ namespace MLS{
       double  cfl_init = 0.2;
       dt = cfl_init*min_coef;
     
-      std::cout << "Inside calculate dt function, cfl = " << cfl_init << "\n"; 
+      std::cout << "Inside calculate dt function, cfl = " << cfl_init << " dt " << dt << "\n"; 
     
     }else{
-      std::cout << "Inside calculate dt function, cfl = " << cfl << "\n";
+      std::cout << "Inside calculate dt function, cfl = " << cfl << " dt " << dt << "\n";
   
       dt = cfl*min_coef;
     }
@@ -91,7 +91,7 @@ namespace MLS{
   
   void Mesh::advect_level_set(){
 
-    std::cout << "ADVECTING" << "\n";
+     std::cout << "ADVECTING" << "\n";
 
     double phi;
     double phi_xdir,phi_ydir;
@@ -122,11 +122,11 @@ namespace MLS{
 	  std::cout << "Advection of level_set. Something went wrong" <<"\n";
 	}
       
-	if(obj_speed_y <0){
+	if(obj_speed_y < 0){
 	  phi_ydir = (phi_ydir_plus-phi)/dy;
 	}else if(obj_speed_y == 0){
 	  phi_ydir = 0;
-	}else if(obj_speed_y >0){
+	}else if(obj_speed_y > 0){
 	  phi_ydir = (phi-phi_ydir_minus)/dy;
 	}else{
 	  std::cout << "Advection of Level_set" <<"\n";
@@ -195,6 +195,7 @@ namespace MLS{
 	MLS_data(x_dir,y_dir+ncells+nGhost).phi = MLS_data(x_dir,ncells+nGhost-1).phi;
       }
     }
+
     //Bottom Boundary of Square Mesh
     //Loop over Ghost bottom rows
     for(int y_dir = 0; y_dir < nGhost; y_dir++ ){
@@ -206,4 +207,177 @@ namespace MLS{
 
   }
 
+  double Mesh::D_minus(int i, int j, std::string dir){
+
+    double phi;
+    double phi_minus;
+    double phi_result;
+    if(dir == "x_dir"){
+      phi = MLS_data(i,j).phi;
+      phi_minus = MLS_data((i-1),j).phi;
+      phi_result = (phi - phi_minus )/dx;
+    }else if (dir == "y_dir"){
+      phi = MLS_data(i,j).phi;
+      phi_minus = MLS_data(i,(j-1)).phi;
+      phi_result = (phi - phi_minus )/dy;
+    }
+    return phi_result;
+
+  }
+
+  double Mesh::D_plus(int i, int j, std::string dir){
+
+    double phi;
+    double phi_plus;
+    double phi_result;
+    if(dir == "x_dir"){
+      phi = MLS_data(i,j).phi;
+      phi_plus = MLS_data((i+1),j).phi;
+      phi_result = (phi_plus - phi)/dx;
+    }else if (dir == "y_dir"){
+      phi = MLS_data(i,j).phi;
+      phi_plus = MLS_data(i,(j+1)).phi;
+      phi_result = (phi_plus - phi)/dy;
+    }
+    return phi_result;
+
+  }
+
+  double Mesh::WENO(int i, int j, std::string stencil, std::string dir){
+    
+    double S1,S2,S3;
+    double a1,a2,a3;
+    double w1,w2,w3;
+    double v1,v2,v3,v4,v5;
+    double phi1,phi2,phi3;
+    double phi_result;
+    double eps; //epsilon
+   
+    if(stencil == "minus" && dir == "x_dir"){ 
+      v1 = D_minus((i-2),j,dir);
+      v2 = D_minus((i-1),j,dir);
+      v3 = D_minus((i),j,dir);
+      v4 = D_minus((i+1),j,dir);
+      v5 = D_minus((i+2),j,dir);
+    }else if(stencil == "plus" && dir == "x_dir"){
+      v1 = D_plus((i+2),j,dir);
+      v2 = D_plus((i+1),j,dir);
+      v3 = D_plus((i),j,dir);
+      v4 = D_plus((i-1),j,dir);
+      v5 = D_plus((i-2),j,dir);
+    }else if(stencil == "minus" && dir == "y_dir"){ 
+      v1 = D_minus(i,(j-2),dir);
+      v2 = D_minus(i,(j-1),dir);
+      v3 = D_minus(i,j,dir);
+      v4 = D_minus(i,(j+1),dir);
+      v5 = D_minus(i,(j+2),dir);
+    }else if(stencil == "plus" && dir == "y_dir"){
+      v1 = D_plus(i,(j+2),dir);
+      v2 = D_plus(i,(j+1),dir);
+      v3 = D_plus(i,j,dir);
+      v4 = D_plus(i,(j-1),dir);
+      v5 = D_plus(i,(j-2),dir);
+    }else{
+      std::cout << "No upwinding differencing stencil selected" << "\n";
+    }
+    
+    phi1 =  (1.0/3.0)*v1 - (7.0/6.0)*v2 + (11.0/6.0)*v3;
+    phi2 = (-1.0/6.0)*v2 + (5.0/6.0)*v3 + (1.0/3.0)*v4;
+    phi3 =  (1.0/3.0)*v3 + (5.0/6.0)*v4 - (1.0/6.0)*v5;
+ 
+    S1 = (13.0/12.0)*(v1-2*v2+v3)*(v1-2*v2+v3) + \
+      (1.0/4.0)*(v1-4*v2+3*v3)*(v1-4*v2+3*v3);
+
+    S2 = (13.0/12.0)*(v2-2*v3+v4)*(v2-2*v3+v4) + \
+      (1.0/4.0)*(v2-v4)*(v2-v4);
+
+    S3 = (13.0/12.0)*(v3-2*v4+v5)*(v3-2*v4+v5) + \
+      (1.0/4.0)*(3*v3-4*v4+v5)*(3*v3-4*v4+v5);
+      
+    std::vector<double> v = {v1,v2,v3,v4,v5};
+    eps = 1e-6*(*std::max_element(v.begin(),v.end()))+1e-99;
+
+    a1 = 0.1/((S1+eps)*(S1+eps));
+    a2 = 0.6/((S2+eps)*(S2+eps));
+    a3 = 0.3/((S3+eps)*(S3+eps));
+
+    double sum_a = a1+a2+a3;
+      
+    w1 = a1/sum_a;
+    w2 = a2/sum_a;
+    w3 = a3/sum_a;
+
+    phi_result = w1*phi1 + w2*phi2 + w3*phi3;
+
+    return phi_result;
+ 
+  }
+
+
+
+  void Mesh::advect_WENO(){
+
+     std::cout << "ADVECTING" << "\n";
+
+    double phi;
+    double phi_xdir,phi_ydir;
+    double phi_xdir_plus,phi_xdir_minus;
+    double phi_ydir_plus,phi_ydir_minus;
+    blitz::Array<double,2>phi_new;
+    double obj_speed_x, obj_speed_y;
+    std::string stencil;
+    std::string dir;
+    phi_new.resize(ncells+2*nGhost,ncells+2*nGhost);
+
+    for(int row = nGhost; row < nGhost+ncells; row++){
+      for(int col = nGhost; col < nGhost+ncells; col++){
+	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	phi = MLS_data(col,row).phi;
+	phi_xdir_plus = MLS_data(col+1,row).phi;
+	phi_xdir_minus = MLS_data(col-1,row).phi;
+	phi_ydir_plus = MLS_data(col,row+1).phi;
+	phi_ydir_minus = MLS_data(col,row-1).phi;
+
+	if(obj_speed_x < 0){
+	  stencil = "plus";
+	  dir = "x_dir";
+	  phi_xdir = WENO(row,col,stencil,dir); 
+	}else if(obj_speed_x == 0){
+	   phi_xdir = 0.0;
+	}else if(obj_speed_x > 0){
+	  stencil = "minus";
+	  dir = "x_dir";
+	  phi_xdir = WENO(row,col,stencil,dir); 
+	}else{
+	  std::cout << "Advection of level_set. Something went wrong" <<"\n";
+	}
+      
+	if(obj_speed_y < 0){
+	  stencil = "plus";
+	  dir = "y_dir";
+	  phi_ydir = WENO(row,col,stencil,dir);
+	}else if(obj_speed_y == 0){
+	  phi_ydir = 0;
+	}else if(obj_speed_y > 0){
+	  stencil = "minus";
+	  dir = "y_dir";
+	  phi_ydir = WENO(row,col,stencil,dir);
+	}else{
+	  std::cout << "Advection of Level_set" <<"\n";
+	}
+	// phi_ydir = 0;
+	phi = phi - dt*(obj_speed_x*phi_xdir+obj_speed_y*phi_ydir);
+	phi_new(col,row) = phi;
+      }
+    }
+
+    for(int row = nGhost; row < nGhost+ncells; row++){
+      for(int col = nGhost; col < nGhost+ncells; col++){
+	MLS_data(col,row).phi = phi_new(col,row);
+      }
+    }
+
+
+  }
 }

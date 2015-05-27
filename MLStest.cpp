@@ -23,10 +23,10 @@ double spiral_speed_x(double x, double y, double t,double T){
   return  0.5;//(-2*M_PI*sin(M_PI*x)*sin(2*M_PI*y)*cos(M_PI*t/T));
 }
 double spiral_speed_y(double x, double y, double t, double T){
-  return  1.0;//(2*M_PI*sin(M_PI*y)*sin(2*M_PI*x)*cos(M_PI*t/T));
+  return  -1.0;//(2*M_PI*sin(M_PI*y)*sin(2*M_PI*x)*cos(M_PI*t/T));
 }
 
-MLS::Cell Zalesak_disk(double x, double y){
+MLS::Cell Zalesak_disk(double x, double y,double time, double T_max){
   
   MLS::Cell cell;
   double phi_circle = 0.0;
@@ -89,6 +89,16 @@ MLS::Cell Zalesak_disk(double x, double y){
 
 }
 
+MLS::Cell zero(double x, double y, double t, double T){
+  MLS::Cell cell;
+ 
+  cell.phi = 2;
+  cell.phi_u = (M_PI/314)*(0.5-y);
+  cell.phi_v = (M_PI/314)*(x-0.5);
+   
+  return cell;
+}
+
 //Inialising level set fcn
 MLS::Cell level_set_circle(double x, double y,double t,double T){
   
@@ -120,32 +130,33 @@ MLS::Cell level_set_circle(double x, double y,double t,double T){
 int main(){
 
   //Set parameters cfl, x_min,x_max
-  int ncells=50;
-  int nGhost=1;
+  int ncells=500;
+  int nGhost=5;
   double x_min=0.0;
   double x_max=1.0;
   double y_min=0.0;
   double y_max=1.0;
-  double cfl=0.9;
-  double T_max = 1.0;
+  double cfl=0.2;
+  double T_max = 628.0;
   //Construct Level set mesh
-  MLS::Mesh m(T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl,spiral_speed_x, spiral_speed_y, level_set_circle);
+  MLS::Mesh m( T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl,spiral_speed_x, spiral_speed_y,level_set_circle);
   m.applyBC();
-  m.Calculate_dt();
 
   std::string Snap = "Snap_";
   m.save_to_file(Snap);
-  //applyBC
-
+ 
   //Evolution loop
   for(double t=0; t<T_max;t+=m.dt){
 
     std::cout <<m.time << "\n";
-    m.advect_level_set();    
+    //m.advect_level_set();    
+    m.advect_WENO();
     m.Calculate_dt();
     m.applyBC();
     m.iter_counter++;
+    if(m.iter_counter%10 == 0){
     m.save_to_file(Snap);
+    }
     m.time += m.dt;
 
   }
