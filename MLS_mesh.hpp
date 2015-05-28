@@ -41,13 +41,15 @@ namespace MLS{
     ~Mesh();
     void Calculate_dt();
     void applyBC();
+    void applyBC(blitz::Array<double,2> & input);
     void advect_level_set();
     void save_to_file(std::string name)const;
     double D_minus(int i, int j, std::string dir);
     double D_plus(int i, int j, std::string dir);
     double WENO(int i, int j, std::string stencil, std::string dir);
     void advect_WENO();
-
+    blitz::Array<double,2> spatial_first(blitz::Array<double,2> input);
+    void advect_RK();
   };
 }
 #endif

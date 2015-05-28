@@ -78,10 +78,10 @@ namespace MLS{
       double  cfl_init = 0.2;
       dt = cfl_init*min_coef;
     
-      std::cout << "Inside calculate dt function, cfl = " << cfl_init << " dt " << dt << "\n"; 
+      //std::cout << "Inside calculate dt function, cfl = " << cfl_init << " dt " << dt << "\n"; 
     
     }else{
-      std::cout << "Inside calculate dt function, cfl = " << cfl << " dt " << dt << "\n";
+      //std::cout << "Inside calculate dt function, cfl = " << cfl << " dt " << dt << "\n";
   
       dt = cfl*min_coef;
     }
@@ -153,7 +153,7 @@ namespace MLS{
     ss << dir << filename << iter_counter;
     std::string tmppath = ss.str();
   
-    std::cout << "CREATING FILE \n";
+    // std::cout << "CREATING FILE \n";
     FILE * outfile = fopen(tmppath.c_str(),"w");
   
     for(int i=nGhost; i<ncells+nGhost; i++)
@@ -294,7 +294,7 @@ namespace MLS{
     S3 = (13.0/12.0)*(v3-2*v4+v5)*(v3-2*v4+v5) + \
       (1.0/4.0)*(3*v3-4*v4+v5)*(3*v3-4*v4+v5);
       
-    std::vector<double> v = {v1,v2,v3,v4,v5};
+    std::vector<double> v = {(v1*v1),(v2*v2),(v3*v3),(v4*v4),(v5*v5)};
     eps = 1e-6*(*std::max_element(v.begin(),v.end()))+1e-99;
 
     a1 = 0.1/((S1+eps)*(S1+eps));
@@ -321,8 +321,6 @@ namespace MLS{
 
     double phi;
     double phi_xdir,phi_ydir;
-    double phi_xdir_plus,phi_xdir_minus;
-    double phi_ydir_plus,phi_ydir_minus;
     blitz::Array<double,2>phi_new;
     double obj_speed_x, obj_speed_y;
     std::string stencil;
@@ -334,10 +332,6 @@ namespace MLS{
 	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
 	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
 	phi = MLS_data(col,row).phi;
-	phi_xdir_plus = MLS_data(col+1,row).phi;
-	phi_xdir_minus = MLS_data(col-1,row).phi;
-	phi_ydir_plus = MLS_data(col,row+1).phi;
-	phi_ydir_minus = MLS_data(col,row-1).phi;
 
 	if(obj_speed_x < 0){
 	  stencil = "plus";
@@ -358,7 +352,7 @@ namespace MLS{
 	  dir = "y_dir";
 	  phi_ydir = WENO(row,col,stencil,dir);
 	}else if(obj_speed_y == 0){
-	  phi_ydir = 0;
+	  phi_ydir = 0.0;
 	}else if(obj_speed_y > 0){
 	  stencil = "minus";
 	  dir = "y_dir";
@@ -380,4 +374,183 @@ namespace MLS{
 
 
   }
+
+  blitz::Array<double,2> Mesh::spatial_first(blitz::Array<double,2> input){
+
+    std::cout << "ADVECTING" << "\n";
+
+    double phi;
+    double phi_xdir,phi_ydir;
+    double phi_xdir_plus,phi_xdir_minus;
+    double phi_ydir_plus,phi_ydir_minus;
+    blitz::Array<double,2>phi_new;
+    double obj_speed_x, obj_speed_y;
+    
+    phi_new.resize(ncells+2*nGhost,ncells+2*nGhost);
+
+    for(int row = nGhost; row < nGhost+ncells; row++){
+      for(int col = nGhost; col < nGhost+ncells; col++){
+	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	phi = input(col,row);
+	phi_xdir_plus = input(col+1,row);
+	phi_xdir_minus = input(col-1,row);
+	phi_ydir_plus = input(col,row+1);
+	phi_ydir_minus = input(col,row-1);
+
+	if(obj_speed_x < 0){
+	  phi_xdir = (phi_xdir_plus-phi)/dx; 
+	}else if(obj_speed_x == 0){
+	  phi_xdir = 0.0;
+	}else if(obj_speed_x > 0){
+	  phi_xdir = (phi-phi_xdir_minus)/dx; 
+	}else{
+	  std::cout << "Advection of level_set. Something went wrong" <<"\n";
+	}
+      
+	if(obj_speed_y < 0){
+	  phi_ydir = (phi_ydir_plus-phi)/dy;
+	}else if(obj_speed_y == 0){
+	  phi_ydir = 0;
+	}else if(obj_speed_y > 0){
+	  phi_ydir = (phi-phi_ydir_minus)/dy;
+	}else{
+	  std::cout << "Advection of Level_set" <<"\n";
+	}
+	// phi_ydir = 0;
+	phi = obj_speed_x*phi_xdir+obj_speed_y*phi_ydir;
+	phi_new(col,row) = phi;
+      }
+    }
+
+    return phi_new; 
+
+  };
+
+  void Mesh::advect_RK(){
+
+    blitz::Array<double, 2> phi_n; 
+    blitz::Array<double, 2> phi_n_one; 
+    blitz::Array<double, 2> phi_n_two; 
+    blitz::Array<double, 2> phi_n_half; 
+    blitz::Array<double, 2> phi_n_three_half;
+
+    blitz::Array<double, 2> V_phi_n; 
+    blitz::Array<double, 2> V_phi_n_one; 
+    blitz::Array<double, 2> V_phi_n_half; 
+
+    phi_n.resize(2*nGhost+ncells,2*nGhost+ncells);
+    phi_n_one.resize(2*nGhost+ncells,2*nGhost+ncells);
+    phi_n_two.resize(2*nGhost+ncells,2*nGhost+ncells);
+    phi_n_half.resize(2*nGhost+ncells,2*nGhost+ncells);
+    phi_n_three_half.resize(2*nGhost+ncells,2*nGhost+ncells);
+    
+    V_phi_n.resize(2*nGhost+ncells,2*nGhost+ncells);
+    V_phi_n_one.resize(2*nGhost+ncells,2*nGhost+ncells);
+    V_phi_n_half.resize(2*nGhost+ncells,2*nGhost+ncells);
+
+    for(int row = nGhost; row < nGhost+ncells; ++row){
+      for(int col = nGhost; col < nGhost+ncells; ++col){
+	phi_n(row,col)= MLS_data(row,col).phi;
+      }
+    }
+
+    applyBC(phi_n);
+
+    V_phi_n = spatial_first(phi_n);
+
+    for(int row = 0; row < nGhost+ncells; ++row){
+      for(int col = nGhost; col < nGhost+ncells; ++col){
+	phi_n_one(row,col) = phi_n(row,col) - dt*V_phi_n(row,col);
+      }
+    }
+
+    applyBC(phi_n_one);
+
+    V_phi_n_one = spatial_first(phi_n_one);
+
+    for(int row = nGhost; row < nGhost+ncells; ++row){
+      for(int col = nGhost; col < nGhost+ncells; ++col){
+	phi_n_two(row,col) = phi_n_one(row,col) - dt*V_phi_n_one(row,col);
+      }
+    }
+
+    double a_coeff =  0.75;
+    double b_coeff = 0.25;
+
+    for(int row = nGhost; row < nGhost+ncells; ++row){
+      for(int col = nGhost; col < nGhost+ncells; ++col){
+	phi_n_half(row,col) = a_coeff*phi_n(row,col) + b_coeff*phi_n_two(row,col) ;
+      }
+    }
+
+    applyBC(phi_n_half);
+
+    V_phi_n_half = spatial_first(phi_n_half); 
+  
+    for(int row = nGhost; row < nGhost+ncells; ++row){
+      for(int col = nGhost; col < nGhost+ncells; ++col){
+	phi_n_three_half(row,col) = phi_n_half(row,col) - dt*V_phi_n_half(row,col);
+      }
+    }
+
+    double c_coeff = 1.0/3.0;
+    double d_coeff = 2.0/3.0;
+
+    for(int row = nGhost; row < nGhost+ncells; ++row){
+      for(int col = nGhost; col < nGhost+ncells; ++col){
+	phi_n_one(row,col) = c_coeff*phi_n(row,col) + d_coeff*phi_n_three_half(row,col) ;
+      }
+    }
+
+
+    for(int row = nGhost; row < nGhost+ncells; ++row){
+      for(int col = nGhost; col < nGhost+ncells; ++col){
+	MLS_data(row,col).phi= phi_n_one(row,col);
+      }
+    }
+  
+  
+  }
+
+
+  void Mesh::applyBC(blitz::Array<double,2> & input){
+
+     for(int x_dir = 0; x_dir < nGhost; x_dir++){
+      //Loop over each row
+      for(int y_dir = nGhost; y_dir<ncells+nGhost; y_dir++){
+	input(x_dir,y_dir)= input(nGhost,y_dir);
+      }
+    }
+    //Right Boundary of Square Mesh
+    //Loop over Ghost right columns
+    for(int x_dir = 0; x_dir < nGhost; x_dir++ ){
+      //Loop over each row
+      for (int y_dir = nGhost; y_dir < ncells+nGhost; y_dir++){
+	input(ncells+nGhost+x_dir,y_dir)= input(ncells+nGhost-1,y_dir);
+      }
+    }
+
+    //Top Boundary of Square Mesh
+    //Loop over Ghost top rows
+    for(int y_dir = 0; y_dir < nGhost; y_dir++){
+      //Loop over each column
+      for(int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
+	input(x_dir,y_dir+ncells+nGhost) = input(x_dir,ncells+nGhost-1);
+      }
+    }
+
+    //Bottom Boundary of Square Mesh
+    //Loop over Ghost bottom rows
+    for(int y_dir = 0; y_dir < nGhost; y_dir++ ){
+      //Loop over each column
+      for (int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
+	input(x_dir,y_dir) = input(x_dir,nGhost);
+      }
+    }
+
+    
+  }
+
 }
+
