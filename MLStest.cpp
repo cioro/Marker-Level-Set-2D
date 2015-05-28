@@ -181,7 +181,7 @@ int main(){
     //std::cout <<m.time << "\n";
     //m.advect_level_set();    
     // m.advect_WENO();
-    m.advect_RK();
+    m.advect_RK_WENO();
     m.Calculate_dt();
     m.applyBC();
     m.iter_counter++;

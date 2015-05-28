@@ -44,12 +44,13 @@ namespace MLS{
     void applyBC(blitz::Array<double,2> & input);
     void advect_level_set();
     void save_to_file(std::string name)const;
-    double D_minus(int i, int j, std::string dir);
-    double D_plus(int i, int j, std::string dir);
-    double WENO(int i, int j, std::string stencil, std::string dir);
-    void advect_WENO();
+    double D_minus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
+    double D_plus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
+    double WENO(int i, int j, std::string stencil, std::string dir,const blitz::Array<double,2> & input);
+    blitz::Array<double,2> spatial_WENO(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first(blitz::Array<double,2> input);
     void advect_RK();
+    void advect_RK_WENO();
   };
 }
 #endif
