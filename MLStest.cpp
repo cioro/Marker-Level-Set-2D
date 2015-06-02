@@ -166,32 +166,46 @@ int main(){
   double x_max=1.0;
   double y_min=0.0;
   double y_max=1.0;
-  double cfl=0.2;
+  double cfl=0.6;
   double T_max = 628.0;
   //Construct Level set mesh
-  MLS::Mesh m( T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl,spiral_speed_x, spiral_speed_y,level_set_wall);
+  MLS::Mesh m( T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, Z_speed_x, Z_speed_y,Zalesak_disk);
   m.applyBC();
 
   std::string Snap = "Snap_";
   m.save_to_file(Snap);
- 
+  
   //Evolution loop
-  for(double t=0; t<T_max;t+=m.dt){
+   
+ for(double t = 0; t < T_max; t += m.dt){
 
+    m.Calculate_dt();
     //std::cout <<m.time << "\n";
     //m.advect_level_set();    
     // m.advect_WENO();
     m.advect_RK_WENO();
-    m.Calculate_dt();
     m.applyBC();
-    m.iter_counter++;
-    if(m.iter_counter%10 == 0){
-    m.save_to_file(Snap);
-   
-    }
+    if((m.iter_counter%100) == 0){
+      m.save_to_file(Snap);
+      }
     m.time += m.dt;
-
+  
+    m.iter_counter++;
   }
-
+ 
+  m.save_to_file(Snap);
+  return 0;
+  
 }
+/*
+  std::cout << "\n";
+    std::cout << "Iteration : " << m.iter_counter << "the time step is "<< m.dt <<  "\n";
 
+    for(int j = 0; j < ncells+2*nGhost; ++j) { 
+      for(int i = 0; i < nGhost+3; ++i){
+	std::cout << m.MLS_data(i,j).phi << "\t";;  
+      }
+      std::cout << "\n"; 
+    }
+    std::cout <<"\n";
+*/

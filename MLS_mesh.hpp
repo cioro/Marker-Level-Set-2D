@@ -48,7 +48,11 @@ namespace MLS{
     double D_plus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
     double WENO(int i, int j, std::string stencil, std::string dir,const blitz::Array<double,2> & input);
     blitz::Array<double,2> spatial_WENO(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_WENO_X(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_WENO_Y(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_first_X(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_first_Y(blitz::Array<double,2> input);
     void advect_RK();
     void advect_RK_WENO();
   };
