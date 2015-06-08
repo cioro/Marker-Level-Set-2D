@@ -41,7 +41,9 @@ namespace MLS{
     ~Mesh();
     void Calculate_dt();
     void applyBC();
+    void applyBC_periodic();
     void applyBC(blitz::Array<double,2> & input);
+    void applyBC_periodic(blitz::Array<double,2> & input);
     void advect_level_set();
     void save_to_file(std::string name)const;
     double D_minus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
@@ -49,12 +51,15 @@ namespace MLS{
     double WENO(int i, int j, std::string stencil, std::string dir,const blitz::Array<double,2> & input);
     blitz::Array<double,2> spatial_WENO(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_WENO_X(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_WENO_X_periodic(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_WENO_Y(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_WENO_Y_periodic(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first_X(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first_Y(blitz::Array<double,2> input);
     void advect_RK();
     void advect_RK_WENO();
+    void advect_RK_WENO_periodic();
   };
 }
 #endif

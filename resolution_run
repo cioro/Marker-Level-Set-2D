@@ -1,0 +1,18 @@
+for r in 50 100 
+do 	
+	cd data
+	mkdir -p $r/data
+	cd $r 
+	../../fedora $r
+	cd ../..	
+done
+rm -f data/convergence.dat
+for r in 50 100 
+do 	
+	cd data/$r/data
+	python ~/Thesis/Marker-Level-Set-2D/converge_script.py $r Snap_*_$r
+	cd ../../..
+done
+cd data
+gnuplot convergence_figure
+display "Convergence_figure.png"

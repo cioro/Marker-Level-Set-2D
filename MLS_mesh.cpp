@@ -218,10 +218,11 @@ namespace MLS{
 };
 
   void Mesh::save_to_file(std::string filename)const{
-
+    
+     
     std::string dir = "data/";
     std::stringstream ss;
-    ss << dir << filename << iter_counter;
+    ss << dir << filename << iter_counter <<"_"<< ncells;
     std::string tmppath = ss.str();
   
     //std::cout << "CREATING FILE \n";
@@ -231,7 +232,7 @@ namespace MLS{
       {
 	for(int j = nGhost; j < ncells+nGhost; j++){
 
-	  fprintf(outfile, "%.4f \t %.4f \t %.4f \t %.4f \t %.4f  \n", xaxis(i), yaxis(j),MLS_data(i,j).phi,MLS_data(i,j).phi_u,MLS_data(i,j).phi_v);
+	  fprintf(outfile, "%.8f \t %.8f \t %.8f \t %.8f \t %.8f  \n", xaxis(i), yaxis(j),MLS_data(i,j).phi,MLS_data(i,j).phi_u,MLS_data(i,j).phi_v);
 	}
 
 	fprintf(outfile,"\n");
@@ -278,6 +279,45 @@ namespace MLS{
     }
 
   }
+
+void Mesh::applyBC_periodic(){
+
+    for(int x_dir = 0; x_dir < nGhost; x_dir++){
+      //Loop over each row
+      for(int y_dir = nGhost; y_dir<ncells+nGhost; y_dir++){
+	MLS_data(x_dir,y_dir).phi= MLS_data(ncells+x_dir,y_dir).phi;
+      }
+    }
+
+    //Right Boundary of Square Mesh
+    //Loop over Ghost right columns
+    for(int x_dir = 0; x_dir < nGhost; x_dir++ ){
+      //Loop over each row
+      for (int y_dir = nGhost; y_dir < ncells+nGhost; y_dir++){
+	MLS_data(nGhost+ncells+x_dir,y_dir).phi= MLS_data(nGhost+x_dir,y_dir).phi;
+      }
+    }
+
+    //Top Boundary of Square Mesh
+    //Loop over Ghost top rows
+    for(int y_dir = 0; y_dir < nGhost; y_dir++){
+      //Loop over each column
+      for(int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
+	MLS_data(x_dir,nGhost+ncells+y_dir).phi = MLS_data(x_dir,nGhost+y_dir).phi;
+      }
+    }
+
+    //Bottom Boundary of Square Mesh
+    //Loop over Ghost bottom rows
+    for(int y_dir = 0; y_dir < nGhost; y_dir++ ){
+      //Loop over each column
+      for (int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
+	MLS_data(x_dir,y_dir).phi = MLS_data(x_dir,ncells+y_dir).phi;
+      }
+    }
+
+  }
+
 
   double Mesh::D_minus(int i, int j, std::string dir,const blitz::Array<double,2> & input ){
 
@@ -418,13 +458,13 @@ namespace MLS{
 	if(obj_speed_x < 0){
 	  stencil = "plus";
 	  dir = "x_dir";
-	  phi_xdir = WENO(row,col,stencil,dir,input); 
+	  phi_xdir = WENO(col,row,stencil,dir,input); 
 	}else if(obj_speed_x == 0){
 	   phi_xdir = 0.0;
 	}else if(obj_speed_x > 0){
 	  stencil = "minus";
 	  dir = "x_dir";
-	  phi_xdir = WENO(row,col,stencil,dir,input); 
+	  phi_xdir = WENO(col,row,stencil,dir,input); 
 	}else{
 	  std::cout << "Advection of level_set. Something went wrong" <<"\n";
 	}
@@ -432,13 +472,13 @@ namespace MLS{
 	if(obj_speed_y < 0){
 	  stencil = "plus";
 	  dir = "y_dir";
-	  phi_ydir = WENO(row,col,stencil,dir,input);
+	  phi_ydir = WENO(col,row,stencil,dir,input);
 	}else if(obj_speed_y == 0){
 	  phi_ydir = 0.0;
 	}else if(obj_speed_y > 0){
 	  stencil = "minus";
 	  dir = "y_dir";
-	  phi_ydir = WENO(row,col,stencil,dir,input);
+	  phi_ydir = WENO(col,row,stencil,dir,input);
 	}else{
 	  std::cout << "Advection of Level_set" <<"\n";
 	}
@@ -493,6 +533,48 @@ namespace MLS{
 
   }
 
+ blitz::Array<double,2> Mesh::spatial_WENO_X_periodic(blitz::Array<double,2> input ){
+
+    // std::cout << "ADVECTING" << "\n";
+    applyBC_periodic(input);
+    double phi;
+    double phi_xdir;
+    blitz::Array<double,2>phi_new;
+    double obj_speed_x;
+    std::string stencil;
+    std::string dir;
+    phi_new.resize(ncells+2*nGhost,ncells+2*nGhost);
+
+    for(int row = nGhost; row < nGhost+ncells; row++){
+      for(int col = nGhost; col < nGhost+ncells; col++){
+	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	
+	phi = 0;
+
+	if(obj_speed_x < 0){
+	  stencil = "plus";
+	  dir = "x_dir";
+	  phi_xdir = WENO(col,row,stencil,dir,input); 
+	}else if(obj_speed_x == 0){
+	   phi_xdir = 0.0;
+	}else if(obj_speed_x > 0){
+	  stencil = "minus";
+	  dir = "x_dir";
+	  phi_xdir = WENO(col,row,stencil,dir,input); 
+	}else{
+	  std::cout << "Advection of level_set. Something went wrong" <<"\n";
+	}
+	
+	phi = obj_speed_x*phi_xdir;
+	phi_new(col,row) = phi;
+      }
+    }
+    applyBC_periodic(phi_new);
+    return phi_new;
+
+  }
+
+
   blitz::Array<double,2> Mesh::spatial_WENO_Y(blitz::Array<double,2> input ){
 
     // std::cout << "ADVECTING" << "\n";
@@ -535,7 +617,49 @@ namespace MLS{
 
   }
       
+   blitz::Array<double,2> Mesh::spatial_WENO_Y_periodic(blitz::Array<double,2> input ){
+
+    // std::cout << "ADVECTING" << "\n";
+    applyBC_periodic(input);
+    double phi;
+    double phi_ydir;
+    blitz::Array<double,2>phi_new;
+    double obj_speed_y;
+    std::string stencil;
+    std::string dir;
+    phi_new.resize(ncells+2*nGhost,ncells+2*nGhost);
+
+    for(int row = nGhost; row < nGhost+ncells; row++){
+      for(int col = nGhost; col < nGhost+ncells; col++){
+	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	
+	phi = 0;
       
+	if(obj_speed_y < 0){
+	  stencil = "plus";
+	  dir = "y_dir";
+	  phi_ydir = WENO(col,row,stencil,dir,input);
+	}else if(obj_speed_y == 0){
+	  phi_ydir = 0.0;
+	}else if(obj_speed_y > 0){
+	  stencil = "minus";
+	  dir = "y_dir";
+	  phi_ydir = WENO(col,row,stencil,dir,input);
+	}else{
+	  std::cout << "Advection of Level_set" <<"\n";
+	}
+	
+	phi = obj_speed_y*phi_ydir;
+	phi_new(col,row) = phi;
+      }
+    }
+
+    applyBC_periodic(phi_new);
+    return phi_new;
+
+  }
+      
+     
 
 
   blitz::Array<double,2> Mesh::spatial_first(blitz::Array<double,2> input){
@@ -919,6 +1043,45 @@ namespace MLS{
     
   }
 
+ void Mesh::applyBC_periodic(blitz::Array<double,2> & input){
+
+     for(int x_dir = 0; x_dir < nGhost; x_dir++){
+      //Loop over each row
+      for(int y_dir = nGhost; y_dir<ncells+nGhost; y_dir++){
+	input(x_dir,y_dir)= input(ncells+x_dir,y_dir);
+      }
+    }
+    //Right Boundary of Square Mesh
+    //Loop over Ghost right columns
+    for(int x_dir = 0; x_dir < nGhost; x_dir++ ){
+      //Loop over each row
+      for (int y_dir = nGhost; y_dir < ncells+nGhost; y_dir++){
+	input(ncells+nGhost+x_dir,y_dir)= input(nGhost+x_dir,y_dir);
+      }
+    }
+
+    //Top Boundary of Square Mesh
+    //Loop over Ghost top rows
+    for(int y_dir = 0; y_dir < nGhost; y_dir++){
+      //Loop over each column
+      for(int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
+	input(x_dir,y_dir+ncells+nGhost) = input(x_dir,nGhost+y_dir);
+      }
+    }
+
+    //Bottom Boundary of Square Mesh
+    //Loop over Ghost bottom rows
+    for(int y_dir = 0; y_dir < nGhost; y_dir++ ){
+      //Loop over each column
+      for (int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
+	input(x_dir,y_dir) = input(x_dir,ncells+y_dir);
+      }
+    }
+
+    
+  }
+
+
   void Mesh::advect_RK_WENO(){
 
     //------------------------------------------------------------------
@@ -1135,8 +1298,14 @@ namespace MLS{
 
 
     //-----------------------------------------------------------------
+   
+  }
 
-    /*
+void Mesh::advect_RK_WENO_periodic(){
+
+    //------------------------------------------------------------------
+
+
     blitz::Array<double, 2> phi_n; 
     blitz::Array<double, 2> phi_n_one; 
     blitz::Array<double, 2> phi_n_two; 
@@ -1163,62 +1332,192 @@ namespace MLS{
       }
     }
 
-    applyBC(phi_n);
+    if(iter_counter%2 == 0){
+      //Calculate phi^(n+1)
+      //-----------------------------------------------------------------
 
-    V_phi_n = spatial_WENO(phi_n);
+      blitz::Array<double,2> phi_n_one_star;
+      phi_n_one_star.resize(2*nGhost+ncells,2*nGhost+ncells);
 
-    for(int row = 0; row < nGhost+ncells; ++row){
-      for(int col = nGhost; col < nGhost+ncells; ++col){
-	phi_n_one(row,col) = phi_n(row,col) - dt*V_phi_n(row,col);
+      V_phi_n = spatial_WENO_X_periodic(phi_n);
+    
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_one_star(row,col) = phi_n(row,col) - dt*V_phi_n(row,col);
+	}
+      }
+
+      V_phi_n = spatial_WENO_Y_periodic(phi_n_one_star);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_one(row,col) = phi_n_one_star(row,col) - dt*V_phi_n(row,col);
+	}
+      }
+
+      //-----------------------------------------------------------------
+
+
+      //Calculate phi^(n+2)
+      //-----------------------------------------------------------------
+      blitz::Array<double,2> phi_n_two_star;
+      phi_n_two_star.resize(2*nGhost+ncells,2*nGhost+ncells);
+    
+      V_phi_n_one = spatial_WENO_X_periodic(phi_n_one);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_two_star(row,col) = phi_n_one(row,col) - dt*V_phi_n_one(row,col);
+	}
+      }
+
+      V_phi_n_one = spatial_WENO_Y_periodic(phi_n_two_star);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_two(row,col) = phi_n_two_star(row,col) - dt*V_phi_n_one(row,col);
+	}
+      }
+      //------------------------------------------------------------------
+
+      double a_coeff =  0.75;
+      double b_coeff = 0.25;
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_half(row,col) = a_coeff*phi_n(row,col) + b_coeff*phi_n_two(row,col) ;
+	}
+      }
+      
+      //Calculate phi^{n+3/2}
+      //----------------------------------------------------------------------------
+      blitz::Array<double,2> phi_n_three_half_star;
+      phi_n_three_half_star.resize(2*nGhost+ncells,2*nGhost+ncells);
+    
+      V_phi_n_half = spatial_WENO_X_periodic(phi_n_half); 
+    
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_three_half_star(row,col) = phi_n_half(row,col) - dt*V_phi_n_half(row,col);
+	}
+      }
+
+      V_phi_n_half = spatial_WENO_Y_periodic(phi_n_three_half_star);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_three_half(row,col) = phi_n_three_half_star(row,col) - dt*V_phi_n_half(row,col);
+	}
+      }
+
+      //----------------------------------------------------------------------------
+      double c_coeff = 1.0/3.0;
+      double d_coeff = 2.0/3.0;
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_one(row,col) = c_coeff*phi_n(row,col) + d_coeff*phi_n_three_half(row,col) ;
+	}
+      }
+
+    }else if(iter_counter%2 == 1){
+       
+      //Calculate phi^(n+1)
+      //-----------------------------------------------------------------
+
+      blitz::Array<double,2> phi_n_one_star;
+      phi_n_one_star.resize(2*nGhost+ncells,2*nGhost+ncells);
+
+      V_phi_n = spatial_WENO_Y_periodic(phi_n);
+    
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_one_star(row,col) = phi_n(row,col) - dt*V_phi_n(row,col);
+	}
+      }
+
+      V_phi_n = spatial_WENO_X_periodic(phi_n_one_star);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_one(row,col) = phi_n_one_star(row,col) - dt*V_phi_n(row,col);
+	}
+      }
+
+      //-----------------------------------------------------------------
+
+
+      //Calculate phi^(n+2)
+      //-----------------------------------------------------------------
+      blitz::Array<double,2> phi_n_two_star;
+      phi_n_two_star.resize(2*nGhost+ncells,2*nGhost+ncells);
+    
+      V_phi_n_one = spatial_WENO_Y_periodic(phi_n_one);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_two_star(row,col) = phi_n_one(row,col) - dt*V_phi_n_one(row,col);
+	}
+      }
+
+      V_phi_n_one = spatial_WENO_X_periodic(phi_n_two_star);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_two(row,col) = phi_n_two_star(row,col) - dt*V_phi_n_one(row,col);
+	}
+      }
+      //------------------------------------------------------------------
+
+      double a_coeff =  0.75;
+      double b_coeff = 0.25;
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_half(row,col) = a_coeff*phi_n(row,col) + b_coeff*phi_n_two(row,col) ;
+	}
+      }
+
+      //----------------------------------------------------------------------------
+      blitz::Array<double,2> phi_n_three_half_star;
+      phi_n_three_half_star.resize(2*nGhost+ncells,2*nGhost+ncells);
+    
+      V_phi_n_half = spatial_WENO_Y_periodic(phi_n_half); 
+    
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_three_half_star(row,col) = phi_n_half(row,col) - dt*V_phi_n_half(row,col);
+	}
+      }
+
+      V_phi_n_half = spatial_WENO_X_periodic(phi_n_three_half_star);
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_three_half(row,col) = phi_n_three_half_star(row,col) - dt*V_phi_n_half(row,col);
+	}
+      }
+
+      //----------------------------------------------------------------------------
+      double c_coeff = 1.0/3.0;
+      double d_coeff = 2.0/3.0;
+
+      for(int row = nGhost; row < nGhost+ncells; ++row){
+	for(int col = nGhost; col < nGhost+ncells; ++col){
+	  phi_n_one(row,col) = c_coeff*phi_n(row,col) + d_coeff*phi_n_three_half(row,col) ;
+	}
       }
     }
-
-    applyBC(phi_n_one);
-
-    V_phi_n_one = spatial_WENO(phi_n_one);
-
-    for(int row = nGhost; row < nGhost+ncells; ++row){
-      for(int col = nGhost; col < nGhost+ncells; ++col){
-	phi_n_two(row,col) = phi_n_one(row,col) - dt*V_phi_n_one(row,col);
-      }
-    }
-
-    double a_coeff =  0.75;
-    double b_coeff = 0.25;
-
-    for(int row = nGhost; row < nGhost+ncells; ++row){
-      for(int col = nGhost; col < nGhost+ncells; ++col){
-	phi_n_half(row,col) = a_coeff*phi_n(row,col) + b_coeff*phi_n_two(row,col) ;
-      }
-    }
-
-    applyBC(phi_n_half);
-
-    V_phi_n_half = spatial_WENO(phi_n_half); 
-  
-    for(int row = nGhost; row < nGhost+ncells; ++row){
-      for(int col = nGhost; col < nGhost+ncells; ++col){
-	phi_n_three_half(row,col) = phi_n_half(row,col) - dt*V_phi_n_half(row,col);
-      }
-    }
-
-    double c_coeff = 1.0/3.0;
-    double d_coeff = 2.0/3.0;
-
-    for(int row = nGhost; row < nGhost+ncells; ++row){
-      for(int col = nGhost; col < nGhost+ncells; ++col){
-	phi_n_one(row,col) = c_coeff*phi_n(row,col) + d_coeff*phi_n_three_half(row,col) ;
-      }
-    }
-
 
     for(int row = nGhost; row < nGhost+ncells; ++row){
       for(int col = nGhost; col < nGhost+ncells; ++col){
 	MLS_data(row,col).phi= phi_n_one(row,col);
       }
     }
-  
-    */
+
+
+    //-----------------------------------------------------------------
+   
   }
 
 

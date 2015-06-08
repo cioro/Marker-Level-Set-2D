@@ -20,10 +20,10 @@ double Z_speed_y(double x, double y, double t, double T){
 }
 
 double spiral_speed_x(double x, double y, double t,double T){
-  return  1.5;//(-2*M_PI*sin(M_PI*x)*sin(2*M_PI*y)*cos(M_PI*t/T));
+  return 1.0;//(-2*M_PI*sin(M_PI*x)*sin(2*M_PI*y)*cos(M_PI*t/T));
 }
 double spiral_speed_y(double x, double y, double t, double T){
-  return  0.0;//(2*M_PI*sin(M_PI*y)*sin(2*M_PI*x)*cos(M_PI*t/T));
+  return 0.0;//(2*M_PI*sin(M_PI*y)*sin(2*M_PI*x)*cos(M_PI*t/T));
 }
 
 MLS::Cell Zalesak_disk(double x, double y,double time, double T_max){
@@ -46,7 +46,6 @@ MLS::Cell Zalesak_disk(double x, double y,double time, double T_max){
   }else{
     std::cout << "CIRCLE LEVEL_SET. error in setting phi" << "\n";
   }
-
 
   double phi_rectangle = 0.0;
   double square_diam_x = 0.025;
@@ -81,10 +80,52 @@ MLS::Cell Zalesak_disk(double x, double y,double time, double T_max){
   phi_rectangle = -1*phi_rectangle;
   double phi;
   phi = std::min(phi_circle, phi_rectangle);
-  
+
+
+
   cell.phi = phi;
   cell.phi_u = (M_PI/314)*(0.5-y);
   cell.phi_v = (M_PI/314)*(x-0.5);
+  return cell;
+
+}
+
+MLS::Cell Mod_Zalesak_disk(double x, double y, double time, double T_max){
+  
+  MLS::Cell cell;
+  double phi;
+  cell = Zalesak_disk(x,y,time,T_max);
+  double R = 0.45;
+  double x_0 = 0.5;
+  double y_0 = 0.5;
+  
+  /*
+  static double fix;
+
+  if(((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) == (R*R) ){
+    fix = R - sqrt((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0));  
+  }else if(((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) >= (R*R)) {
+    phi = fix;
+  }
+  */
+
+  // cell.phi = phi;
+  cell.phi_u = 0;
+  cell.phi_v = 0;
+  return cell;
+  
+}
+
+MLS::Cell level_set_diagonal(double x, double y, double time, double T_max){
+
+  MLS::Cell cell;
+  double phi = 0.0;
+
+  phi = x + y - 1;
+  cell.phi = phi;
+  cell.phi_u = 0;
+  cell.phi_v = 0;
+  
   return cell;
 
 }
@@ -97,11 +138,11 @@ MLS::Cell level_set_wall(double x, double y,double time, double T_max){
   const double x_0 = 0.5;
   
   //Solid
-  if (x<=x_0){
-    phi = (x_0-x);   
+  if (y<=x_0){
+    phi = (x_0-y);   
     
-  }else if (x>x_0){
-    phi = (x_0-x);
+  }else if (y>x_0){
+    phi = (x_0-y);
     
   }else{
     std::cout<<"Something went wrong inside the level set function in main.cpp"<<std::endl;
@@ -157,44 +198,49 @@ MLS::Cell level_set_circle(double x, double y,double t,double T){
   return cell;
 }
 
-int main(){
+int main(int argc, char* argv[]){
 
   //Set parameters cfl, x_min,x_max
-  int ncells=500;
+  int ncells=atof(argv[1]);
   int nGhost=5;
   double x_min=0.0;
   double x_max=1.0;
   double y_min=0.0;
   double y_max=1.0;
-  double cfl=0.6;
-  double T_max = 628.0;
+  double cfl=0.4;
+  double T_max = 1.0;// = 628.3185;
   //Construct Level set mesh
-  MLS::Mesh m( T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, Z_speed_x, Z_speed_y,Zalesak_disk);
+  MLS::Mesh m( T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, spiral_speed_x, spiral_speed_y,level_set_circle);
   m.applyBC();
 
   std::string Snap = "Snap_";
   m.save_to_file(Snap);
   
   //Evolution loop
-   
+  
  for(double t = 0; t < T_max; t += m.dt){
 
     m.Calculate_dt();
+    if(m.time+m.dt > T_max){
+      m.dt = T_max-m.time;
+    }
     //std::cout <<m.time << "\n";
     //m.advect_level_set();    
     // m.advect_WENO();
-    m.advect_RK_WENO();
+    m.advect_RK_WENO_periodic();
+    // m.advect_RK();
     m.applyBC();
-    if((m.iter_counter%100) == 0){
-      m.save_to_file(Snap);
-      }
+    if((m.iter_counter%10) == 0){
+    m.save_to_file(Snap);
+     }
     m.time += m.dt;
   
     m.iter_counter++;
   }
- 
-  m.save_to_file(Snap);
-  return 0;
+ //std::cout<< m.time << "\n";
+ m.save_to_file(Snap);
+  
+ return 0;
   
 }
 /*
