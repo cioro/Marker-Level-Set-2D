@@ -48,7 +48,7 @@ for x in xrange(elem):
 sum_total = 0
 for x in xrange(elem):
     sum_total += sub[x]
-error_norm = np.sqrt(abs(sum_total)*(1/res**2))
+error_norm = np.sqrt(abs(sum_total)*(1/float(res)**2))
 print error_norm 
 if not(os.path.isfile("/home/rocio/Thesis/Marker-Level-Set-2D/data/convergence.dat")):
     output_file = open("/home/rocio/Thesis/Marker-Level-Set-2D/data/convergence.dat","w")

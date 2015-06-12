@@ -10,7 +10,7 @@
 #include<sstream>
 #include<algorithm>
 #include"MLS_cell.hpp"
-
+#include"MLS_particle.hpp"
 namespace MLS{
   class Mesh{
 
@@ -30,6 +30,7 @@ namespace MLS{
     blitz::Array<Cell,2> MLS_data;
     blitz::Array<double,1> xaxis;
     blitz::Array<double,1> yaxis;
+    std::vector<Particle> MLS_markers;
 
     double (*speed_x)(double x, double y, double t,double T);
     double (*speed_y)(double x, double y, double t,double T);

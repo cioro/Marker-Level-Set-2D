@@ -36,11 +36,55 @@ namespace MLS{
 	y_counter++;
 
 	MLS_data(i,j) = level_set(xaxis(i),yaxis(j),time,T_max);
-
+	
       }
       y_counter=0;
      
     }
+    //--------MARKER VECTOR INITALIZATION-------------
+    //------------------------------------------------
+    int numMarkers = 100;
+    double r = (3.0/20.0);
+    double x_c = 0.5;
+    double y_c = 0.75;
+    double alpha = M_PI/double(numMarkers);
+    std::cout << "This is a tiny angle: " <<alpha <<"\n";
+    double arg_x_coord = x_c;
+    double arg_y_coord = y_c;
+    Particle particle;
+    for(int i = 0; i <numMarkers; i++){
+      double angle = i*alpha;
+      std::cout <<"This is the current angle: " << angle <<"\n";
+      if(0 <= alpha < M_PI_2){
+	arg_x_coord =r*cos(angle);
+	arg_y_coord =r*sin(angle);
+	std::cout << "\t y_coord =" << arg_y_coord << "\n";
+	MLS_markers.push_back(particle);
+      }else if(M_PI_2 < alpha < M_PI){
+	arg_x_coord =(-1)*r*cos(angle);
+	arg_y_coord =r*sin(angle);
+
+	std::cout << "\t y_coord =" << arg_y_coord << "\n";
+      }else if(M_PI < alpha < 3*M_PI_2){
+
+	arg_x_coord =(-1)*r*cos(angle);
+	arg_y_coord =(-1)*r*sin(angle);
+	std::cout << "\t y_coord =" << arg_y_coord << "\n";
+
+      }else if(3*M_PI_2 < alpha < 2*M_PI){
+
+	arg_x_coord =r*cos(angle);
+	arg_y_coord =(-1)*r*sin(angle);
+	
+	std::cout << "\t y_coord =" << arg_y_coord << "\n";
+
+      }
+      particle.x_coord = arg_x_coord+x_c;
+      particle.y_coord = arg_y_coord;//+y_c;
+      MLS_markers.push_back(particle);
+    }
+
+    //------------------------------------------------
   
   };
 
@@ -239,6 +283,16 @@ namespace MLS{
       
       }
     fclose(outfile);
+    
+    std::string marker = "marker";
+    std::stringstream ssm;
+    ssm << dir << filename << marker << iter_counter;
+    std::string tmppathssm = ssm.str();
+  
+    FILE * markerfile = fopen(tmppathssm.c_str(),"w");
+    for(int i = 0; i < MLS_markers.size(); ++i){
+      fprintf(markerfile, "%.8f \t %.8f \n", MLS_markers[i].x_coord,MLS_markers[i].y_coord);
+    }
 
   };
 

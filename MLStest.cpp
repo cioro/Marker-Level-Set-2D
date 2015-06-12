@@ -208,7 +208,7 @@ int main(int argc, char* argv[]){
   double y_min=0.0;
   double y_max=1.0;
   double cfl=0.4;
-  double T_max = 1.0;// = 628.3185;
+  double T_max = 0.2;// = 628.3185;
   //Construct Level set mesh
   MLS::Mesh m( T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, spiral_speed_x, spiral_speed_y,level_set_circle);
   m.applyBC();
