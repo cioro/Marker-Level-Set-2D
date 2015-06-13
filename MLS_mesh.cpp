@@ -43,11 +43,12 @@ namespace MLS{
     }
     //--------MARKER VECTOR INITALIZATION-------------
     //------------------------------------------------
-    int numMarkers = 100;
+
+    int numMarkers = 500;
     double r = (3.0/20.0);
     double x_c = 0.5;
     double y_c = 0.75;
-    double alpha = M_PI/double(numMarkers);
+    double alpha =(2*M_PI)/double(numMarkers);
     std::cout << "This is a tiny angle: " <<alpha <<"\n";
     double arg_x_coord = x_c;
     double arg_y_coord = y_c;
@@ -55,32 +56,31 @@ namespace MLS{
     for(int i = 0; i <numMarkers; i++){
       double angle = i*alpha;
       std::cout <<"This is the current angle: " << angle <<"\n";
-      if(0 <= alpha < M_PI_2){
+      std::cout <<"Am I going crazy " << M_PI_2 << "\n";
+      if(0 < alpha <= M_PI_2){
 	arg_x_coord =r*cos(angle);
 	arg_y_coord =r*sin(angle);
+	std::cout << "\t x_coord =" << arg_x_coord << "\n";
 	std::cout << "\t y_coord =" << arg_y_coord << "\n";
 	MLS_markers.push_back(particle);
-      }else if(M_PI_2 < alpha < M_PI){
-	arg_x_coord =(-1)*r*cos(angle);
-	arg_y_coord =r*sin(angle);
-
+      }else if(M_PI_2 < alpha <= M_PI){
+	arg_x_coord =r*sin(angle);
+	arg_y_coord =r*cos(angle);
+	std::cout << "\t x_coord =" << arg_x_coord << "\n";
 	std::cout << "\t y_coord =" << arg_y_coord << "\n";
-      }else if(M_PI < alpha < 3*M_PI_2){
-
+      }else if(M_PI < alpha <= 3*M_PI_2){
 	arg_x_coord =(-1)*r*cos(angle);
 	arg_y_coord =(-1)*r*sin(angle);
+	std::cout << "\t x_coord =" << arg_x_coord << "\n";
 	std::cout << "\t y_coord =" << arg_y_coord << "\n";
-
-      }else if(3*M_PI_2 < alpha < 2*M_PI){
-
-	arg_x_coord =r*cos(angle);
-	arg_y_coord =(-1)*r*sin(angle);
-	
+      }else if(3*M_PI_2 < alpha <= 2*M_PI){
+	arg_x_coord =r*sin(angle);
+	arg_y_coord =(-1)*r*cos(angle);
+	std::cout << "\t x_coord =" << arg_x_coord << "\n";
 	std::cout << "\t y_coord =" << arg_y_coord << "\n";
-
       }
-      particle.x_coord = arg_x_coord+x_c;
-      particle.y_coord = arg_y_coord;//+y_c;
+      particle.x_coord = arg_x_coord;//+x_c;
+      particle.y_coord = arg_y_coord;//+y_c;//+y_c;
       MLS_markers.push_back(particle);
     }
 
