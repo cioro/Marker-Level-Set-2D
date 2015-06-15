@@ -25,6 +25,7 @@ namespace MLS{
     double time;
     double T_max;
     int iter_counter;
+    int numMarkers;
  
 
     blitz::Array<Cell,2> MLS_data;
@@ -37,7 +38,7 @@ namespace MLS{
   
     //constructor
     Mesh();
-    Mesh(double T, int ncells,int nGhost, double x_min, double x_max,double y_min,double y_max,double cfl, double (*speed_x)(double x, double y, double t, double T), double (*speed_y)(double x, double y, double t,double T), Cell (*level_set)(double x, double y,double time,double T));
+    Mesh(int numMarkers, double T, int ncells,int nGhost, double x_min, double x_max,double y_min,double y_max,double cfl, double (*speed_x)(double x, double y, double t, double T), double (*speed_y)(double x, double y, double t,double T), Cell (*level_set)(double x, double y,double time,double T));
 
     ~Mesh();
     void Calculate_dt();
@@ -61,6 +62,8 @@ namespace MLS{
     void advect_RK();
     void advect_RK_WENO();
     void advect_RK_WENO_periodic();
+    void advect_markers();
+    void RK(Particle & p);
   };
 }
 #endif

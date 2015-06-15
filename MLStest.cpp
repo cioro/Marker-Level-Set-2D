@@ -20,10 +20,10 @@ double Z_speed_y(double x, double y, double t, double T){
 }
 
 double spiral_speed_x(double x, double y, double t,double T){
-  return 1.0;//(-2*M_PI*sin(M_PI*x)*sin(2*M_PI*y)*cos(M_PI*t/T));
+  return 0.0;//(-2*M_PI*sin(M_PI*x)*sin(2*M_PI*y)*cos(M_PI*t/T));
 }
 double spiral_speed_y(double x, double y, double t, double T){
-  return 0.0;//(2*M_PI*sin(M_PI*y)*sin(2*M_PI*x)*cos(M_PI*t/T));
+  return -1.0;//(2*M_PI*sin(M_PI*y)*sin(2*M_PI*x)*cos(M_PI*t/T));
 }
 
 MLS::Cell Zalesak_disk(double x, double y,double time, double T_max){
@@ -90,31 +90,6 @@ MLS::Cell Zalesak_disk(double x, double y,double time, double T_max){
 
 }
 
-MLS::Cell Mod_Zalesak_disk(double x, double y, double time, double T_max){
-  
-  MLS::Cell cell;
-  double phi;
-  cell = Zalesak_disk(x,y,time,T_max);
-  double R = 0.45;
-  double x_0 = 0.5;
-  double y_0 = 0.5;
-  
-  /*
-  static double fix;
-
-  if(((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) == (R*R) ){
-    fix = R - sqrt((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0));  
-  }else if(((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) >= (R*R)) {
-    phi = fix;
-  }
-  */
-
-  // cell.phi = phi;
-  cell.phi_u = 0;
-  cell.phi_v = 0;
-  return cell;
-  
-}
 
 MLS::Cell level_set_diagonal(double x, double y, double time, double T_max){
 
@@ -208,9 +183,10 @@ int main(int argc, char* argv[]){
   double y_min=0.0;
   double y_max=1.0;
   double cfl=0.4;
-  double T_max = 0.2;// = 628.3185;
+  double T_max = 0.5;// = 628.3185;
+  int numMarkers = 100;
   //Construct Level set mesh
-  MLS::Mesh m( T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, spiral_speed_x, spiral_speed_y,level_set_circle);
+  MLS::Mesh m(numMarkers,T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, spiral_speed_x, spiral_speed_y,level_set_circle);
   m.applyBC();
 
   std::string Snap = "Snap_";
@@ -230,6 +206,7 @@ int main(int argc, char* argv[]){
     m.advect_RK_WENO_periodic();
     // m.advect_RK();
     m.applyBC();
+    m.advect_markers();
     if((m.iter_counter%10) == 0){
     m.save_to_file(Snap);
      }

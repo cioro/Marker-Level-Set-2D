@@ -12,7 +12,7 @@
 namespace MLS{
 
   Mesh::Mesh(){};
-  Mesh::Mesh(double AT_max,int arg_ncells, int AnGhost, double Ax_min, double Ax_max,double Ay_min,double Ay_max,double arg_cfl, double (*s_x)(double x, double y, double t, double T), double (*s_y)(double x, double y, double t, double T), Cell (*level_set)(double x, double y, double time, double T_max)) :T_max(AT_max), ncells(arg_ncells),nGhost(AnGhost), x_min(Ax_min),x_max(Ax_max),y_min(Ay_min),y_max(Ay_max),cfl(arg_cfl), iter_counter(0),time(0), speed_x(s_x), speed_y(s_y)
+  Mesh::Mesh(int AnumM, double AT_max,int arg_ncells, int AnGhost, double Ax_min, double Ax_max,double Ay_min,double Ay_max,double arg_cfl, double (*s_x)(double x, double y, double t, double T), double (*s_y)(double x, double y, double t, double T), Cell (*level_set)(double x, double y, double time, double T_max)) :T_max(AT_max), ncells(arg_ncells),nGhost(AnGhost), x_min(Ax_min),x_max(Ax_max),y_min(Ay_min),y_max(Ay_max),cfl(arg_cfl), iter_counter(0),time(0), speed_x(s_x), speed_y(s_y),numMarkers(AnumM)
   {
      
     dx = (x_max-x_min)/(double)ncells;
@@ -44,46 +44,59 @@ namespace MLS{
     //--------MARKER VECTOR INITALIZATION-------------
     //------------------------------------------------
 
-    int numMarkers = 500;
+    
     double r = (3.0/20.0);
     double x_c = 0.5;
     double y_c = 0.75;
     double alpha =(2*M_PI)/double(numMarkers);
+    double beta = sin(0.025/r);
+    std::cout << "The angle is " << beta << "\n";
+    double beta_start = (1.5*M_PI-beta);
+    double beta_end = (1.5*M_PI+beta);
+    std::cout << "The start angle is : " << beta_start << " the end angle is " << beta_end << "\n";
     std::cout << "This is a tiny angle: " <<alpha <<"\n";
     double arg_x_coord = x_c;
     double arg_y_coord = y_c;
+    double slot_length = sqrt((0.15)*(0.15)-(0.025)*(0.025));
     Particle particle;
-    for(int i = 0; i <numMarkers; i++){
-      double angle = i*alpha;
+    double slot_markers;
+    double angle;
+    for(int i = 0; i < numMarkers; i++){
+      angle = i*alpha;
       std::cout <<"This is the current angle: " << angle <<"\n";
-      std::cout <<"Am I going crazy " << M_PI_2 << "\n";
-      if(0 < alpha <= M_PI_2){
+      std::cout <<"Am I going crazy and desperate \n";
+      if(0 < angle && angle < beta_start){
 	arg_x_coord =r*cos(angle);
 	arg_y_coord =r*sin(angle);
 	std::cout << "\t x_coord =" << arg_x_coord << "\n";
 	std::cout << "\t y_coord =" << arg_y_coord << "\n";
+	particle.x_coord = arg_x_coord + x_c;
+	particle.y_coord = arg_y_coord + y_c;//+y_c;
 	MLS_markers.push_back(particle);
-      }else if(M_PI_2 < alpha <= M_PI){
-	arg_x_coord =r*sin(angle);
-	arg_y_coord =r*cos(angle);
-	std::cout << "\t x_coord =" << arg_x_coord << "\n";
-	std::cout << "\t y_coord =" << arg_y_coord << "\n";
-      }else if(M_PI < alpha <= 3*M_PI_2){
-	arg_x_coord =(-1)*r*cos(angle);
-	arg_y_coord =(-1)*r*sin(angle);
-	std::cout << "\t x_coord =" << arg_x_coord << "\n";
-	std::cout << "\t y_coord =" << arg_y_coord << "\n";
-      }else if(3*M_PI_2 < alpha <= 2*M_PI){
-	arg_x_coord =r*sin(angle);
-	arg_y_coord =(-1)*r*cos(angle);
-	std::cout << "\t x_coord =" << arg_x_coord << "\n";
-	std::cout << "\t y_coord =" << arg_y_coord << "\n";
-      }
-      particle.x_coord = arg_x_coord;//+x_c;
-      particle.y_coord = arg_y_coord;//+y_c;//+y_c;
-      MLS_markers.push_back(particle);
-    }
+      }else if(beta_start <= angle && angle <= beta_end){
+	
+	/*if(){
+	  arg_x_coord = -0.025;
+	  arg_y_coord = -slot_length + y_counter;
+	  y_counter += y_step*
+	}else if(){
 
+	}else if(){
+	}*/
+
+      }else if(beta_end < angle && angle <= 2*M_PI){
+	arg_x_coord =r*cos(angle);
+	arg_y_coord =r*sin(angle);
+	std::cout << "\t x_coord =" << arg_x_coord << "\n";
+	std::cout << "\t y_coord =" << arg_y_coord << "\n";
+	std::cout << "AFTER SLOT \n";
+	particle.x_coord = arg_x_coord + x_c;
+	particle.y_coord = arg_y_coord + y_c;//+y_c;
+	MLS_markers.push_back(particle);
+      }
+      
+    }
+    std::cout << "The numer of markers is : " << MLS_markers.size() << "\n";
     //------------------------------------------------
   
   };
@@ -1571,9 +1584,37 @@ void Mesh::advect_RK_WENO_periodic(){
 
 
     //-----------------------------------------------------------------
-   
-  }
-
-
+  
 }
 
+  void Mesh::RK(Particle & p){
+
+    double k1x = this-> speed_x(p.x_coord,p.y_coord,time,T_max);
+    double k1y = this-> speed_y(p.x_coord,p.y_coord,time,T_max);
+    
+    double k2x = this-> speed_x(p.x_coord + 0.5*dt*k1x, p.y_coord + 0.5*dt*k1y,time + 0.5*dt,T_max);
+    double k2y = this-> speed_y(p.x_coord + 0.5*dt*k1x, p.y_coord + 0.5*dt*k1y,time + 0.5*dt,T_max);
+    
+    double k3x = this-> speed_x(p.x_coord + 0.5*dt*k2x, p.y_coord + 0.5*dt*k2y,time + 0.5*dt,T_max);
+    double k3y = this-> speed_y(p.x_coord + 0.5*dt*k2x, p.y_coord + 0.5*dt*k2y,time + 0.5*dt,T_max);
+    
+    double k4x = this-> speed_x(p.x_coord + dt*k3x, p.y_coord + dt*k3y,time + dt,T_max);
+    double k4y = this-> speed_y(p.x_coord + dt*k3x, p.y_coord + dt*k3y,time + dt,T_max);
+
+    double x = p.x_coord + (dt/6.0)*(k1x + 2*k2x + 2*k3x + k4x);
+    double y = p.y_coord + (dt/6.0)*(k1y + 2*k2y + 2*k3y + k4y);
+   
+    p.x_coord = x;
+    p.y_coord = y;
+  
+  }
+
+  void Mesh::advect_markers(){
+
+    for(int i = 0; i < MLS_markers.size(); i++){
+      RK(MLS_markers[i]);
+    }
+
+  }
+
+}
