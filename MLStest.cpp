@@ -178,22 +178,26 @@ int main(int argc, char* argv[]){
   //Set parameters cfl, x_min,x_max
   int ncells=atof(argv[1]);
   int nGhost=5;
-  double x_min=0.0;
-  double x_max=1.0;
-  double y_min=0.0;
-  double y_max=1.0;
-  double cfl=0.4;
-  double T_max = 0.5;// = 628.3185;
-  int numMarkers = 100;
+  double x_min=-0.5;
+  double x_max=1.5;
+  double y_min=-0.5;
+  double y_max=1.5;
+  double cfl=0.6;
+  double T_max = 628.3185;
+  int numMarkers = 50;
   //Construct Level set mesh
-  MLS::Mesh m(numMarkers,T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, spiral_speed_x, spiral_speed_y,level_set_circle);
+  MLS::Mesh m(numMarkers,T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, Z_speed_x, Z_speed_y,Zalesak_disk);
   m.applyBC();
+  
+  m.correction1();
 
   std::string Snap = "Snap_";
-  m.save_to_file(Snap);
-  
+  //m.save_to_file(Snap);
+  m.vtk_output(Snap);
+  m.vtk_output_marker(Snap);
   //Evolution loop
-  
+
+    
  for(double t = 0; t < T_max; t += m.dt){
 
     m.Calculate_dt();
@@ -203,19 +207,26 @@ int main(int argc, char* argv[]){
     //std::cout <<m.time << "\n";
     //m.advect_level_set();    
     // m.advect_WENO();
-    m.advect_RK_WENO_periodic();
+    // m.advect_RK_WENO_periodic();
     // m.advect_RK();
+    m.advect_RK_WENO();
     m.applyBC();
     m.advect_markers();
+    //m.correction1();
     if((m.iter_counter%10) == 0){
-    m.save_to_file(Snap);
-     }
+      //m.save_to_file(Snap);
+      m.vtk_output(Snap);
+      m.vtk_output_marker(Snap);
+    }
+    
     m.time += m.dt;
   
     m.iter_counter++;
-  }
+    }
  //std::cout<< m.time << "\n";
- m.save_to_file(Snap);
+ // m.save_to_file(Snap);
+ m.vtk_output(Snap);
+ m.vtk_output_marker(Snap);
   
  return 0;
   

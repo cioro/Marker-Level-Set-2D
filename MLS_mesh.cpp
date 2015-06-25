@@ -19,28 +19,52 @@ namespace MLS{
     dy = (y_max-y_min)/(double)ncells;
  
     MLS_data.resize(ncells + 2*nGhost,ncells + 2*nGhost);
-    xaxis.resize(ncells + 2*nGhost);
-    yaxis.resize(ncells + 2*nGhost);
+    xaxis.resize(ncells + 2*nGhost +1);
+    yaxis.resize(ncells + 2*nGhost +1);
+    x_cell_axis.resize(ncells+2*nGhost);
+    y_cell_axis.resize(ncells+2*nGhost);
    
     int x_counter = 0;//Used to correctly calculate value of xaxis (value starts at 0 not nGhost,
     int y_counter = 0;//but first element is nGhost; Difference between array index and represented value
    
 
-    //fill in xaxis
-    for(int i = nGhost; i <(ncells+nGhost); i++){
+    //fill in xaxis and y axis
+    for(int i = nGhost; i <(ncells+nGhost+1); i++){
       xaxis(i) = x_min + x_counter*dx;
       x_counter++;
-     
-      for(int j = nGhost; j<(ncells+nGhost); j++){
+      for(int j = nGhost; j<(ncells+nGhost+1); j++){
 	yaxis(j) = y_min + y_counter*dy;
 	y_counter++;
-
-	MLS_data(i,j) = level_set(xaxis(i),yaxis(j),time,T_max);
-	
       }
       y_counter=0;
      
     }
+    
+    x_counter=0;
+    y_counter=0;
+    
+    for(int i = nGhost; i <(ncells+nGhost); i++){
+      x_cell_axis(i) = dx*0.5 + x_min + x_counter*dx;
+      x_counter++;
+      for(int j = nGhost; j<(ncells+nGhost); j++){
+	y_cell_axis(j) = dy*0.5 + y_min + y_counter*dy;
+	y_counter++;
+      }
+      y_counter=0;
+    }
+    
+    
+
+    for(int i = nGhost; i <(ncells+nGhost); i++){
+      for(int j = nGhost; j<(ncells+nGhost); j++){
+	//Loop overage 
+	//Loop average
+	MLS_data(i,j) = level_set(x_cell_axis(i),y_cell_axis(j),time,T_max);
+      }
+    }
+
+
+
     //--------MARKER VECTOR INITALIZATION-------------
     //------------------------------------------------
 
@@ -50,11 +74,11 @@ namespace MLS{
     double y_c = 0.75;
     double alpha =(2*M_PI)/double(numMarkers);
     double beta = sin(0.025/r);
-    std::cout << "The angle is " << beta << "\n";
+    //    std::cout << "The angle is " << beta << "\n";
     double beta_start = (1.5*M_PI-beta);
     double beta_end = (1.5*M_PI+beta);
-    std::cout << "The start angle is : " << beta_start << " the end angle is " << beta_end << "\n";
-    std::cout << "This is a tiny angle: " <<alpha <<"\n";
+    //std::cout << "The start angle is : " << beta_start << " the end angle is " << beta_end << "\n";
+    //std::cout << "This is a tiny angle: " <<alpha <<"\n";
     double arg_x_coord = x_c;
     double arg_y_coord = y_c;
     double slot_length = sqrt((0.15)*(0.15)-(0.025)*(0.025));
@@ -63,39 +87,65 @@ namespace MLS{
     double angle;
     for(int i = 0; i < numMarkers; i++){
       angle = i*alpha;
-      std::cout <<"This is the current angle: " << angle <<"\n";
-      std::cout <<"Am I going crazy and desperate \n";
+      //std::cout <<"This is the current angle: " << angle <<"\n";
       if(0 < angle && angle < beta_start){
 	arg_x_coord =r*cos(angle);
 	arg_y_coord =r*sin(angle);
-	std::cout << "\t x_coord =" << arg_x_coord << "\n";
-	std::cout << "\t y_coord =" << arg_y_coord << "\n";
+	//std::cout << "\t x_coord =" << arg_x_coord << "\n";
+	//std::cout << "\t y_coord =" << arg_y_coord << "\n";
 	particle.x_coord = arg_x_coord + x_c;
 	particle.y_coord = arg_y_coord + y_c;//+y_c;
 	MLS_markers.push_back(particle);
       }else if(beta_start <= angle && angle <= beta_end){
-	
-	/*if(){
-	  arg_x_coord = -0.025;
-	  arg_y_coord = -slot_length + y_counter;
-	  y_counter += y_step*
-	}else if(){
-
-	}else if(){
-	}*/
-
+	//Leave blank for slot to be created
       }else if(beta_end < angle && angle <= 2*M_PI){
 	arg_x_coord =r*cos(angle);
 	arg_y_coord =r*sin(angle);
-	std::cout << "\t x_coord =" << arg_x_coord << "\n";
-	std::cout << "\t y_coord =" << arg_y_coord << "\n";
-	std::cout << "AFTER SLOT \n";
+	//std::cout << "\t x_coord =" << arg_x_coord << "\n";
+	//std::cout << "\t y_coord =" << arg_y_coord << "\n";
+	//std::cout << "AFTER SLOT \n";
 	particle.x_coord = arg_x_coord + x_c;
 	particle.y_coord = arg_y_coord + y_c;//+y_c;
 	MLS_markers.push_back(particle);
       }
-      
     }
+    //std::cout << "Current number of markers : " << MLS_markers.size() << std::endl;
+      double abs_slot_length = 0.25;
+      int x_counter_slot = 10;
+      int y_counter_slot = 25;
+      double x_step = 0.05/double(x_counter_slot);
+      double y_step = abs_slot_length/double(y_counter_slot);
+            
+      //double y_step = 0.01; 
+      //left-side of slot(25)
+      for(int i = 0; i <= y_counter_slot; ++i){
+	arg_x_coord = -0.025;
+	arg_y_coord = -slot_length + i*y_step;
+     	particle.x_coord = arg_x_coord + x_c;
+	particle.y_coord = arg_y_coord + y_c;//+y_c;
+	MLS_markers.push_back(particle);
+
+      }
+      //top of slot(10)
+      //double x_step = 0.005;
+      for(int i = 0; i <= x_counter_slot; ++i){
+	arg_y_coord = 0.25-slot_length;
+	arg_x_coord = -0.025 + x_step*i;
+	particle.x_coord = arg_x_coord + x_c;
+	particle.y_coord = arg_y_coord + y_c;//+y_c;
+	MLS_markers.push_back(particle);
+      }
+
+      //righ-side of slot(25)
+      for(int i = 0; i <= y_counter_slot; ++i){
+	arg_x_coord = 0.025;
+	arg_y_coord = -slot_length + i*y_step;
+	particle.x_coord = arg_x_coord + x_c;
+	particle.y_coord = arg_y_coord + y_c;//+y_c;
+	MLS_markers.push_back(particle);
+
+      }
+    
     std::cout << "The numer of markers is : " << MLS_markers.size() << "\n";
     //------------------------------------------------
   
@@ -114,9 +164,9 @@ namespace MLS{
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
      
-	speedtemp_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	speedtemp_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	//std::cout << speedtemp_x << std::endl;
-	speedtemp_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	speedtemp_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
       
 	if(fabs(speedtemp_x) > fabs(speed_x)){
 	  speed_x = speedtemp_x;
@@ -165,7 +215,7 @@ namespace MLS{
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
 
-	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	phi = MLS_data(col,row).phi;
 	phi_xdir_plus = MLS_data(col+1,row).phi;
 	phi_xdir_minus = MLS_data(col-1,row).phi;
@@ -192,7 +242,7 @@ namespace MLS{
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
 
-	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	phi = phi_new(col,row);
 	phi_ydir_plus = phi_new(col,row+1);
 	phi_ydir_minus = phi_new(col,row-1);
@@ -219,7 +269,7 @@ namespace MLS{
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
 
-	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	phi = phi_new_2(col,row);
 	phi_ydir_plus = phi_new_2(col,row+1);
 	phi_ydir_minus = phi_new_2(col,row-1);
@@ -243,7 +293,7 @@ namespace MLS{
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
 
-	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	phi = phi_new(col,row);
 	phi_xdir_plus = phi_new(col+1,row);
 	phi_xdir_minus = phi_new(col-1,row);
@@ -388,9 +438,9 @@ void Mesh::applyBC_periodic(){
 
   double Mesh::D_minus(int i, int j, std::string dir,const blitz::Array<double,2> & input ){
 
-    double phi;
-    double phi_minus;
-    double phi_result;
+    double phi=0;
+    double phi_minus=0;
+    double phi_result=0;
     if(dir == "x_dir"){
       phi = input(i,j);
       phi_minus = input((i-1),j);
@@ -406,9 +456,9 @@ void Mesh::applyBC_periodic(){
 
   double Mesh::D_plus(int i, int j, std::string dir, const blitz::Array<double,2> & input){
 
-    double phi;
-    double phi_plus;
-    double phi_result;
+    double phi=0;
+    double phi_plus=0;
+    double phi_result=0;
     if(dir == "x_dir"){
       phi = input(i,j);
       phi_plus = input((i+1),j);
@@ -517,8 +567,8 @@ void Mesh::applyBC_periodic(){
 
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
-	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
-	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
+	obj_speed_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	
 	phi = 0;
 
@@ -573,7 +623,7 @@ void Mesh::applyBC_periodic(){
 
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
-	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	
 	phi = 0;
 
@@ -614,7 +664,7 @@ void Mesh::applyBC_periodic(){
 
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
-	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	
 	phi = 0;
 
@@ -656,7 +706,7 @@ void Mesh::applyBC_periodic(){
 
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
-	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	
 	phi = 0;
       
@@ -698,7 +748,7 @@ void Mesh::applyBC_periodic(){
 
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
-	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	
 	phi = 0;
       
@@ -744,8 +794,8 @@ void Mesh::applyBC_periodic(){
 
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
-	obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
-	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
+	obj_speed_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	phi = input(col,row);
 	phi_xdir_plus = input(col+1,row);
 	phi_xdir_minus = input(col-1,row);
@@ -794,7 +844,7 @@ void Mesh::applyBC_periodic(){
    
    for(int row = nGhost; row < nGhost+ncells; row++){
      for(int col = nGhost; col < nGhost+ncells; col++){
-       obj_speed_x = this->speed_x(xaxis(col),yaxis(row),time,T_max);
+       obj_speed_x = this->speed_x(x_cell_axis(col),y_cell_axis(row),time,T_max);
 
        phi = input(col,row);
        phi_xdir_plus = input(col+1,row);
@@ -834,7 +884,7 @@ void Mesh::applyBC_periodic(){
     for(int row = nGhost; row < nGhost+ncells; row++){
       for(int col = nGhost; col < nGhost+ncells; col++){
 
-	obj_speed_y = this->speed_y(xaxis(col),yaxis(row),time,T_max);
+	obj_speed_y = this->speed_y(x_cell_axis(col),y_cell_axis(row),time,T_max);
 	phi = input(col,row);
 	phi_ydir_plus = input(col,row+1);
 	phi_ydir_minus = input(col,row-1);
@@ -1617,4 +1667,136 @@ void Mesh::advect_RK_WENO_periodic(){
 
   }
 
-}
+  void Mesh::vtk_output(std::string filename)const{
+    
+    std::string dir = "data/";
+    std::string vtk = ".vtk";
+    std::stringstream ss;
+    ss << dir << filename << iter_counter << vtk ;
+    std::string tmppath = ss.str();
+
+    std::ofstream outFile;
+    outFile.open(tmppath,std::ofstream::out);
+    
+    outFile.precision(8);
+    outFile << "# vtk DataFile Version 2.0" << std::endl;
+    outFile << "vtk output" << std::endl;
+    outFile << "ASCII" << std::endl;
+    outFile << "DATASET STRUCTURED_GRID" << std::endl;
+    outFile << "DIMENSIONS " << (ncells+1) << " " << (ncells+1) << " " << 1.0 << std::endl;
+    outFile << "POINTS" << " " << (ncells+1)*(ncells+1) << " " << "double" << std::endl;
+    for(int i = nGhost; i < ncells+nGhost+1; i++){
+	for(int j = nGhost; j < ncells+nGhost+1; j++){
+	  outFile << xaxis(j) << "\t" <<  yaxis(i) << "\t" << 0.0  << std::endl;
+	}
+      }
+    
+    outFile << "POINT_DATA " << (ncells+1)*(ncells+1) << std::endl;
+    outFile << "SCALARS Phi_Nodes float" << std::endl;
+    outFile << "LOOKUP_TABLE default" << std::endl;
+    for(int j = nGhost; j < ncells+nGhost+1; j++){
+      for(int i = nGhost; i < ncells+nGhost+1; i++){
+	//Shouldn't there be an array access issue-not corner values are emty.
+	outFile << 0.25*(MLS_data(i-1,j-1).phi+MLS_data(i-1,j).phi+MLS_data(i,j).phi+MLS_data(i,j-1).phi)  << std::endl;
+	}
+    }
+    
+    outFile << "CELL_DATA " << ncells*ncells << std::endl;
+    outFile << "SCALARS Phi_Cells float" << std::endl;
+    outFile << "LOOKUP_TABLE default" << std::endl;
+    for(int i = nGhost; i < ncells+nGhost; i++){
+	for(int j = nGhost; j < ncells+nGhost; j++){
+	  outFile << MLS_data(j,i).phi  << std::endl;
+	}
+      }
+          
+    outFile.close();
+     
+  }
+
+
+  void Mesh::vtk_output_marker(std::string filename)const{
+
+    std::string dir = "data/";
+    std::string vtk = ".vtk";
+    std::stringstream ss;
+    ss << dir << filename << iter_counter << "_markers" << vtk ;
+    std::string tmppath = ss.str();
+
+    std::ofstream outFile;
+    outFile.open(tmppath,std::ofstream::out);
+    
+    outFile.precision(8);
+    outFile << "# vtk DataFile Version 2.0" << std::endl;
+    outFile << "vtk output" << std::endl;
+    outFile << "ASCII" << std::endl;
+     
+    outFile<< "DATASET POLYDATA" << std::endl;
+    outFile << "POINTS" << " " << MLS_markers.size()<< " " << "float" << std::endl;
+    for(int i = 0; i < MLS_markers.size(); i++){
+      outFile<< MLS_markers[i].x_coord << "\t" << MLS_markers[i].y_coord << "\t" << 0.0 << std::endl;
+      }
+   
+    outFile<<"POINT_DATA "<< MLS_markers.size()<< std::endl;
+    outFile <<"SCALARS markers float" << std::endl;
+    outFile << "LOOKUP_TABLE default" << std::endl;
+    for(int i = 0; i < MLS_markers.size(); i++){
+      outFile<<  0.0 << std::endl;
+    }
+    
+    outFile.close();
+
+  }
+
+  void Mesh::correction1(){
+    std::cout <<"Inside correction function" << std::endl;
+    std::vector<MLS::Particle> interface_nodes;
+    Particle node_particle;
+    int x_cell_index = 0;
+    int y_cell_index = 0;
+    double current_phi;
+    double new_phi;
+    double x_dist = 0;
+    double y_dist = 0;
+    double distance = 0;
+    //Update Distance
+    //for each marker mk
+    for(auto &marker : MLS_markers){
+      
+      //-------------------UPDATE SIGN PROCEDURE--------------------------------
+      //for each node phi(i,j) near mk-assume it is within the same cell.
+      //In the future- could use quadrants to update the closest neigbouring cells.
+      x_cell_index = int(floor((marker.x_coord-x_min-0.5*dx)/dx)) + nGhost;
+      y_cell_index = int(floor((marker.y_coord-y_min-0.5*dy)/dy)) + nGhost;
+      
+      x_dist = x_cell_axis(x_cell_index);
+      y_dist = y_cell_axis(y_cell_index);
+
+     
+      distance = sqrt((x_dist- marker.x_coord)*(x_dist - marker.x_coord) + (y_dist - marker.y_coord)*(y_dist - marker.y_coord));
+      current_phi = MLS_data(x_cell_index,y_cell_index).phi;
+      
+      //abs(phi(i,j))=min(abs(phi(i,j),dist(node,mk)  
+      new_phi = double(std::min(distance,fabs(current_phi)));
+      MLS_data(x_cell_index,y_cell_index).phi = new_phi;
+      //-------------------------------------------------------------------------
+      
+      //-------------CREATING VECTOR OF INTERFACE CELL NODES ---------------
+      node_particle.x_coord = x_dist;
+      node_particle.y_coord = y_dist;
+      interface_nodes.push_back(node_particle);
+      //--------------------------------------------------------------------
+
+    }
+
+    double d1,d2;
+    //Update Sign
+    for(auto &node : interface_nodes){
+    
+    }
+    
+
+  }//End of correction fcn
+
+
+}//End of NAMESPACE MLS

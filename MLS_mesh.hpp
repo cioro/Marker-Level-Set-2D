@@ -31,6 +31,8 @@ namespace MLS{
     blitz::Array<Cell,2> MLS_data;
     blitz::Array<double,1> xaxis;
     blitz::Array<double,1> yaxis;
+    blitz::Array<double,1> x_cell_axis;
+    blitz::Array<double,1> y_cell_axis;
     std::vector<Particle> MLS_markers;
 
     double (*speed_x)(double x, double y, double t,double T);
@@ -48,6 +50,9 @@ namespace MLS{
     void applyBC_periodic(blitz::Array<double,2> & input);
     void advect_level_set();
     void save_to_file(std::string name)const;
+    void vtk_output(std::string filename)const;
+    void vtk_output_marker(std::string filename)const;
+
     double D_minus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
     double D_plus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
     double WENO(int i, int j, std::string stencil, std::string dir,const blitz::Array<double,2> & input);
@@ -64,6 +69,7 @@ namespace MLS{
     void advect_RK_WENO_periodic();
     void advect_markers();
     void RK(Particle & p);
+    void correction1();
   };
 }
 #endif
