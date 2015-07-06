@@ -7,7 +7,12 @@
 #include<iostream> 
 #include<string>
 #include<sstream>
+#include<functional>
 #include<algorithm>
+#include <unordered_map>
+#include <initializer_list>
+
+
 
 namespace MLS{
 
@@ -109,10 +114,11 @@ namespace MLS{
 	MLS_markers.push_back(particle);
       }
     }
+    
     //std::cout << "Current number of markers : " << MLS_markers.size() << std::endl;
       double abs_slot_length = 0.25;
-      int x_counter_slot = 10;
-      int y_counter_slot = 25;
+      int x_counter_slot = 1.5*(0.05)/(alpha*r);
+      int y_counter_slot = 1.5*(0.25)/(alpha*r);
       double x_step = 0.05/double(x_counter_slot);
       double y_step = abs_slot_length/double(y_counter_slot);
             
@@ -1749,7 +1755,7 @@ void Mesh::advect_RK_WENO_periodic(){
   }
 
   void Mesh::correction1(){
-    std::cout <<"Inside correction function" << std::endl;
+    //std::cout <<"Inside correction function" << std::endl;
     std::vector<MLS::Particle> interface_nodes;
     Particle node_particle;
     int x_cell_index = 0;
@@ -1759,26 +1765,158 @@ void Mesh::advect_RK_WENO_periodic(){
     double x_dist = 0;
     double y_dist = 0;
     double distance = 0;
+    double x_quad,y_quad;
     //Update Distance
     //for each marker mk
     for(auto &marker : MLS_markers){
       
-      //-------------------UPDATE SIGN PROCEDURE--------------------------------
+      //-------------------UPDATE Distance PROCEDURE--------------------------------
+      
       //for each node phi(i,j) near mk-assume it is within the same cell.
       //In the future- could use quadrants to update the closest neigbouring cells.
-      x_cell_index = int(floor((marker.x_coord-x_min-0.5*dx)/dx)) + nGhost;
-      y_cell_index = int(floor((marker.y_coord-y_min-0.5*dy)/dy)) + nGhost;
+      x_cell_index = int(floor((marker.x_coord-x_min)/dx)) + nGhost;
+      y_cell_index = int(floor((marker.y_coord-y_min)/dy)) + nGhost;
       
       x_dist = x_cell_axis(x_cell_index);
       y_dist = y_cell_axis(y_cell_index);
-
      
       distance = sqrt((x_dist- marker.x_coord)*(x_dist - marker.x_coord) + (y_dist - marker.y_coord)*(y_dist - marker.y_coord));
       current_phi = MLS_data(x_cell_index,y_cell_index).phi;
       
       //abs(phi(i,j))=min(abs(phi(i,j),dist(node,mk)  
-      new_phi = double(std::min(distance,fabs(current_phi)));
-      MLS_data(x_cell_index,y_cell_index).phi = new_phi;
+
+      if( MLS_data(x_cell_index,y_cell_index).phi < 0){
+	new_phi =-1* double(std::min(distance,fabs(current_phi)));    
+	MLS_data(x_cell_index,y_cell_index).phi = new_phi;
+      } else if(MLS_data(x_cell_index,y_cell_index).phi > 0){
+	new_phi = double(std::min(distance,fabs(current_phi)));    
+	MLS_data(x_cell_index,y_cell_index).phi = new_phi;
+      }
+      //-------------------------------------------------------------------------
+      
+      //----------FINDING NEIGHBOURING CELLS-------------------------------------
+      
+      //std::cout << "The current cell has index : i " <<x_cell_index << " and j " << y_cell_index << std::endl;
+      //std::cout << "This corresponds to node at x : " << x_dist << " and y : " << y_dist << std::endl; 
+      x_quad = marker.x_coord-x_dist;
+      y_quad = marker.y_coord-y_dist;
+
+      if(x_quad >= 0 && y_quad >= 0){
+	//std::cout << "marker is in first quadrant : " << x_quad << "\t" << y_quad << std::endl;
+	//std::cout << " The current cel has index : i " << x_cell_index+1 << std::endl;
+	//std::cout << "Are these two the same : x_cell_index " << x_cell_axis(x_cell_index+1) << "x_dist+dx" <<x_dist+dx << std::endl; 
+	//Find distance to three uper corner nodes.
+	//right
+	distance = sqrt((x_dist+dx- marker.x_coord)*(x_dist+dx - marker.x_coord) + (y_dist - marker.y_coord)*(y_dist - marker.y_coord));
+	if(MLS_data((x_cell_index+1),y_cell_index).phi < 0){
+	MLS_data((x_cell_index+1),y_cell_index).phi = -1*std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index).phi));
+	}else if(MLS_data((x_cell_index+1),y_cell_index).phi > 0){
+	MLS_data((x_cell_index+1),y_cell_index).phi = std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index).phi));
+	}
+	
+	//corner
+	distance = sqrt((x_dist+dx- marker.x_coord)*(x_dist+dx - marker.x_coord) + (y_dist+dy - marker.y_coord)*(y_dist+dy - marker.y_coord));
+	if(MLS_data((x_cell_index+1),y_cell_index+1).phi < 0 ){
+	MLS_data((x_cell_index+1),y_cell_index+1).phi = -1*std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index+1).phi));
+	}else if(MLS_data((x_cell_index+1),y_cell_index+1).phi > 0){
+	MLS_data((x_cell_index+1),y_cell_index+1).phi = std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index+1).phi));
+	}
+
+	//upper
+	
+	distance = sqrt((x_dist- marker.x_coord)*(x_dist - marker.x_coord) + (y_dist+dy - marker.y_coord)*(y_dist+dy - marker.y_coord));
+	if( MLS_data(x_cell_index,y_cell_index+1).phi < 0 ){
+	  MLS_data(x_cell_index,y_cell_index+1).phi =-1* std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index+1).phi));
+	}else if( MLS_data(x_cell_index,y_cell_index+1).phi > 0){
+	  MLS_data(x_cell_index,y_cell_index+1).phi = std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index+1).phi));
+	}
+	
+      }else if(x_quad < 0 && y_quad > 0 ){
+	//std::cout << "marker is in second quadrant : " << x_quad << "\t" << y_quad << std::endl;
+	//left
+	distance = sqrt((x_dist-dx- marker.x_coord)*(x_dist-dx - marker.x_coord) + (y_dist - marker.y_coord)*(y_dist - marker.y_coord));
+	if( MLS_data((x_cell_index-1),y_cell_index).phi < 0){
+	  MLS_data((x_cell_index-1),y_cell_index).phi =-1*std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index).phi));
+	}else if( MLS_data((x_cell_index-1),y_cell_index).phi > 0){
+	  MLS_data((x_cell_index-1),y_cell_index).phi = std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index).phi));
+	}
+
+	//corner
+	distance = sqrt((x_dist-dx- marker.x_coord)*(x_dist-dx - marker.x_coord) + (y_dist+dy - marker.y_coord)*(y_dist+dy - marker.y_coord));
+	if( MLS_data(x_cell_index-1,y_cell_index+1).phi < 0){
+	  MLS_data(x_cell_index-1,y_cell_index+1).phi =-1*std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index+1).phi));
+	}else if( MLS_data(x_cell_index-1,y_cell_index+1).phi > 0){
+	  MLS_data(x_cell_index-1,y_cell_index+1).phi = std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index+1).phi));
+	}
+	
+	//upper
+	distance = sqrt((x_dist- marker.x_coord)*(x_dist - marker.x_coord) + (y_dist+dy - marker.y_coord)*(y_dist+dy - marker.y_coord));
+	if( MLS_data(x_cell_index,y_cell_index+1).phi < 0){
+	  MLS_data(x_cell_index,y_cell_index+1).phi = -1*std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index+1).phi));
+	}else if( MLS_data(x_cell_index,y_cell_index+1).phi > 0){
+	  MLS_data(x_cell_index,y_cell_index+1).phi = std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index+1).phi));
+	}
+	
+	
+      }else if(x_quad < 0 && y_quad < 0){
+	//left
+	distance = sqrt((x_dist-dx- marker.x_coord)*(x_dist-dx - marker.x_coord) + (y_dist - marker.y_coord)*(y_dist - marker.y_coord));
+	if( MLS_data((x_cell_index-1),y_cell_index).phi < 0){
+	  MLS_data((x_cell_index-1),y_cell_index).phi =-1*std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index).phi));
+	}else if( MLS_data((x_cell_index-1),y_cell_index).phi > 0){
+	  MLS_data((x_cell_index-1),y_cell_index).phi = std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index).phi));
+	}
+	
+
+	//lowerleft corner
+	distance = sqrt((x_dist-dx- marker.x_coord)*(x_dist-dx - marker.x_coord) + (y_dist-dy - marker.y_coord)*(y_dist-dy - marker.y_coord));
+	if(MLS_data((x_cell_index-1),y_cell_index-1).phi < 0){
+	  MLS_data((x_cell_index-1),y_cell_index-1).phi =-1* std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index-1).phi));
+	}else if(MLS_data((x_cell_index-1),y_cell_index-1).phi > 0){
+	  MLS_data((x_cell_index-1),y_cell_index-1).phi = std::min(distance,fabs(MLS_data((x_cell_index-1),y_cell_index-1).phi));
+	}
+
+	//lower
+	distance = sqrt((x_dist- marker.x_coord)*(x_dist - marker.x_coord) + (y_dist-dy - marker.y_coord)*(y_dist-dy - marker.y_coord));
+	if( MLS_data(x_cell_index,y_cell_index-1).phi < 0){
+	  MLS_data(x_cell_index,y_cell_index-1).phi = -1*std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index-1).phi));	
+	}else if( MLS_data(x_cell_index,y_cell_index-1).phi > 0){
+	  MLS_data(x_cell_index,y_cell_index-1).phi = std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index-1).phi));
+	}
+	
+
+	//std::cout << "marker is in third  quadrant : " << x_quad << "\t" << y_quad << std::endl;
+      }else if(x_quad > 0 && y_quad < 0){
+	//std::cout << "marker is in fourth quadrant : " << x_quad << "\t" << y_quad << std::endl;
+	//right
+	distance = sqrt((x_dist+dx- marker.x_coord)*(x_dist+dx - marker.x_coord) + (y_dist - marker.y_coord)*(y_dist - marker.y_coord));
+	if( MLS_data((x_cell_index+1),y_cell_index).phi < 0 ){
+	  MLS_data((x_cell_index+1),y_cell_index).phi = -1*std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index).phi));
+	}else if( MLS_data((x_cell_index+1),y_cell_index).phi > 0){
+	  MLS_data((x_cell_index+1),y_cell_index).phi = std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index).phi));
+	}
+	
+	//corner
+	distance = sqrt((x_dist+dx- marker.x_coord)*(x_dist+dx - marker.x_coord) + (y_dist-dy - marker.y_coord)*(y_dist-dy - marker.y_coord));
+	if(  MLS_data((x_cell_index+1),y_cell_index-1).phi < 0){
+	MLS_data((x_cell_index+1),y_cell_index-1).phi = -1*std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index-1).phi));
+	}else if(  MLS_data((x_cell_index+1),y_cell_index-1).phi > 0){
+	  MLS_data((x_cell_index+1),y_cell_index-1).phi = std::min(distance,fabs(MLS_data((x_cell_index+1),y_cell_index-1).phi));
+	}
+	
+
+	//lower
+	distance = sqrt((x_dist- marker.x_coord)*(x_dist - marker.x_coord) + (y_dist-dy - marker.y_coord)*(y_dist-dy - marker.y_coord));
+	if( MLS_data(x_cell_index,y_cell_index-1).phi < 0){
+	  MLS_data(x_cell_index,y_cell_index-1).phi =-1*std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index-1).phi));
+	}else if( MLS_data(x_cell_index,y_cell_index-1).phi > 0){
+	  MLS_data(x_cell_index,y_cell_index-1).phi = std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index-1).phi));
+	}
+	
+
+      }
+      
+      
       //-------------------------------------------------------------------------
       
       //-------------CREATING VECTOR OF INTERFACE CELL NODES ---------------
@@ -1786,17 +1924,117 @@ void Mesh::advect_RK_WENO_periodic(){
       node_particle.y_coord = y_dist;
       interface_nodes.push_back(node_particle);
       //--------------------------------------------------------------------
-
+      
     }
-
+    
+    //---------------UPDATE SIGN OF INTERFACIAL NODES ----------------------------
+    /*
     double d1,d2;
+    double x_node_index,y_node_index;
     //Update Sign
     for(auto &node : interface_nodes){
+      x_node_index =  int(floor((marker.x_coord-x_min)/dx)) + nGhost;
+      y_node_index = ();
+      d1;// = sqrt(node.x_coord-
     
-    }
-    
+      }*/
+    //----------------------------------------------------------------------------
 
   }//End of correction fcn
 
+
+  void Mesh::marchingSquares(){
+    double zero_threshold = 0.0;
+    double plus_delta_x_threshold = dx;
+    double minus_delta_x_threshold = -1*dx;
+    int case_zero;
+    int case_plus_x;
+    int case_minus_x;
+    std::vector<std::pair <double,double>> zero_pair,plus_pair,minus_pair;
+    double vert1,vert2,vert3,vert4; // There are the corners of each cell name anticlockwise top right = 1.
+    // std::cout << "Inside marching squares function" << std::endl;
+    //Go through each of the squares.
+    for(int j = nGhost; j < ncells+nGhost; j++){
+      for(int i = nGhost; i < ncells+nGhost; i++){
+	
+	vert1 = 0.25*(MLS_data(i,j).phi+MLS_data(i+1,j).phi+MLS_data(i,j+1).phi+MLS_data(i+1,j+1).phi);
+	vert2 = 0.25*(MLS_data(i,j).phi+MLS_data(i-1,j).phi+MLS_data(i,j+1).phi+MLS_data(i-1,j+1).phi);
+	vert3 = 0.25*(MLS_data(i,j).phi+MLS_data(i-1,j).phi+MLS_data(i,j-1).phi+MLS_data(i-1,j-1).phi);
+	vert4 = 0.25*(MLS_data(i,j).phi+MLS_data(i+1,j).phi+MLS_data(i,j-1).phi+MLS_data(i+1,j-1).phi);
+	
+	//Determine the case for each square
+	case_zero = Case(zero_threshold, vert1,vert2,vert3,vert4);
+	case_minus_x = Case(minus_delta_x_threshold, vert1,vert2,vert3,vert4);
+	case_plus_x = Case(plus_delta_x_threshold, vert1,vert2,vert3,vert4);
+	
+	//Test for the case and set the key.
+	zero_pair = squareReconstruction(case_zero,i,j,vert1,vert2,vert3,vert4,zero_threshold);
+	minus_pair = squareReconstruction(case_minus_x,i,j,vert1,vert2,vert3,vert4,minus_delta_x_threshold);
+	plus_pair = squareReconstruction(case_plus_x,i,j,vert1,vert2,vert3,vert4,plus_delta_x_threshold);
+	
+	std::pair<int,int> key_index(i,j);
+
+	interface.insert({key_index,zero_pair});
+	minus_dx_LS.insert({key_index,minus_pair});
+	plus_dx_LS.insert({key_index,plus_pair});
+
+	}
+    }
+    //Check for each threshold-determined with case we are dealing with.
+    //
+    //Check the different cases
+    //update the maps as required.
+  }
+
+  int Mesh::Case(double threshold, double vert1,double vert2,double vert3,double vert4, double threshold){
+   
+    int case_output = 0;
+    
+    if(vert1 > threshold){ case_output += 1 ;}
+    if(vert2 > threshold){ case_output += 2 ;}
+    if(vert3 > threshold){ case_output += 8 ;}  
+    if(vert4 > threshold){ case_output += 4 ;}
+  
+   
+    return case_output;
+  }
+
+  std::vector<std::pair<double,double>> Mesh::squareReconstruction(int Case, int i ,int j,double v1,double v2,double v3,double v4,double threshold){
+
+    std::vector<std::pair<double,double>> output;
+    //the first member of the pair is the gradient of the line, the second one a point on the line.
+    std::pair<double,double> values;
+    double a1,a2,a3,a4;
+
+    if(Case == 0){
+      output.resize(1);
+      values.first = -1;
+      values.second = -1;
+      output.push_back(values);
+    }else if(Case == 15){
+      output.resize(1);
+      values.first = -1;
+      values.second = -1;
+      output.push_back(values);
+    }else if(Case == 1){
+      a1 = (v1-threshold)/(v1-v2);
+    }else if(Case == 2){
+    
+    }else if(Case == 3){
+    }else if(Case == 4){
+    }else if(Case == 5){
+    }else if(Case == 6){    
+    }else if(Case == 7){
+    }else if(Case == 8){
+    }else if(Case == 9){
+    }else if(Case == 10){
+    }else if(Case == 11){
+    }else if(Case == 12){
+    }else if(Case == 13){
+    }else if(Case == 14){
+    }
+    return output;
+    
+  }
 
 }//End of NAMESPACE MLS

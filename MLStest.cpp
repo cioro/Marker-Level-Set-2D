@@ -3,6 +3,8 @@
 #include"MLS_mesh.hpp"
 #include"MLS_cell.hpp"
 #include<vector>
+#include <unordered_map>
+#include<functional>
 #include<cmath>
 #include<fstream>
 #include<iostream>
@@ -184,20 +186,22 @@ int main(int argc, char* argv[]){
   double y_max=1.5;
   double cfl=0.6;
   double T_max = 628.3185;
-  int numMarkers = 50;
+  int numMarkers = ncells*4;
   //Construct Level set mesh
   MLS::Mesh m(numMarkers,T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, Z_speed_x, Z_speed_y,Zalesak_disk);
   m.applyBC();
   
-  m.correction1();
-
+  m.marchingSquares();
+  //m.correction1();
+  /*
   std::string Snap = "Snap_";
   //m.save_to_file(Snap);
   m.vtk_output(Snap);
   m.vtk_output_marker(Snap);
+  
   //Evolution loop
-
-    
+  
+   
  for(double t = 0; t < T_max; t += m.dt){
 
     m.Calculate_dt();
@@ -212,7 +216,7 @@ int main(int argc, char* argv[]){
     m.advect_RK_WENO();
     m.applyBC();
     m.advect_markers();
-    //m.correction1();
+    m.correction1();
     if((m.iter_counter%10) == 0){
       //m.save_to_file(Snap);
       m.vtk_output(Snap);
@@ -227,19 +231,7 @@ int main(int argc, char* argv[]){
  // m.save_to_file(Snap);
  m.vtk_output(Snap);
  m.vtk_output_marker(Snap);
-  
+  */
  return 0;
   
 }
-/*
-  std::cout << "\n";
-    std::cout << "Iteration : " << m.iter_counter << "the time step is "<< m.dt <<  "\n";
-
-    for(int j = 0; j < ncells+2*nGhost; ++j) { 
-      for(int i = 0; i < nGhost+3; ++i){
-	std::cout << m.MLS_data(i,j).phi << "\t";;  
-      }
-      std::cout << "\n"; 
-    }
-    std::cout <<"\n";
-*/

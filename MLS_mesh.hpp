@@ -2,6 +2,9 @@
 #define MLS2D_H
 
 #include<vector>
+#include<initializer_list>
+#include<functional>
+#include<unordered_map>
 #include<blitz/array.h>
 #include<fstream>
 #include<cmath>
@@ -11,6 +14,18 @@
 #include<algorithm>
 #include"MLS_cell.hpp"
 #include"MLS_particle.hpp"
+
+namespace std {
+  template <> 
+  struct hash <std::pair<int,int>> {
+   size_t operator () (const std::pair<int,int> & p )const {
+      return p.first+1000*p.second;
+    }
+  };
+
+}//end of std namespace
+
+
 namespace MLS{
   class Mesh{
 
@@ -34,6 +49,10 @@ namespace MLS{
     blitz::Array<double,1> x_cell_axis;
     blitz::Array<double,1> y_cell_axis;
     std::vector<Particle> MLS_markers;
+
+    std::unordered_map<std::pair<int,int>,std::vector<std::pair<double,double>>> interface;
+    std::unordered_map<std::pair<int,int>,std::vector<std::pair<double,double>>> plus_dx_LS;
+    std::unordered_map<std::pair<int,int>,std::vector<std::pair<double,double>>> minus_dx_LS;
 
     double (*speed_x)(double x, double y, double t,double T);
     double (*speed_y)(double x, double y, double t,double T);
@@ -70,6 +89,9 @@ namespace MLS{
     void advect_markers();
     void RK(Particle & p);
     void correction1();
+    void marchingSquares();
+    int Case(double threshold, double v1, double v2, double v3, double v4);
+    std::vector<std::pair<double,double>> squareReconstruction(int,int,int,double,double,double,double);
   };
 }
 #endif
