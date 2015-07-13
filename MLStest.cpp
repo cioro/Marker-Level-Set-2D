@@ -14,11 +14,11 @@
 
 //Speed functions
 double Z_speed_x(double x, double y, double t, double T){
-  return ((M_PI/314)*(0.5-y));
+  return  ((M_PI/314)*(y-0.5));// ((M_PI/314)*(0.5-y));
 }
 
 double Z_speed_y(double x, double y, double t, double T){
-  return ((M_PI/314)*(x-0.5));
+  return ((M_PI/314)*(0.5-x));//((M_PI/314)*(x-0.5));
 }
 
 double spiral_speed_x(double x, double y, double t,double T){
@@ -51,10 +51,10 @@ MLS::Cell Zalesak_disk(double x, double y,double time, double T_max){
 
   double phi_rectangle = 0.0;
   double square_diam_x = 0.025;
-  double square_diam_y = 0.125;
+  double square_diam_y = 0.195;
   
   double x_0 = 0.5;
-  double y_0 = 0.725;
+  double y_0 = 0.655;
   
   double x_dis;
   double y_dis;
@@ -191,9 +191,10 @@ int main(int argc, char* argv[]){
   MLS::Mesh m(numMarkers,T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, Z_speed_x, Z_speed_y,Zalesak_disk);
   m.applyBC();
   
-  m.marchingSquares();
-  //m.correction1();
-  /*
+  //m.marchingSquares();
+  
+  m.correction1();
+  
   std::string Snap = "Snap_";
   //m.save_to_file(Snap);
   m.vtk_output(Snap);
@@ -217,21 +218,23 @@ int main(int argc, char* argv[]){
     m.applyBC();
     m.advect_markers();
     m.correction1();
-    if((m.iter_counter%10) == 0){
+    //if((m.iter_counter%10) == 0){
       //m.save_to_file(Snap);
       m.vtk_output(Snap);
       m.vtk_output_marker(Snap);
-    }
+      //}
     
     m.time += m.dt;
   
     m.iter_counter++;
+     std::cout << "The area is " << m.Z_area << "\n";
     }
  //std::cout<< m.time << "\n";
  // m.save_to_file(Snap);
  m.vtk_output(Snap);
  m.vtk_output_marker(Snap);
-  */
+ std::cout << "The final area is " << m.Z_area << "\n";
+  
  return 0;
   
 }

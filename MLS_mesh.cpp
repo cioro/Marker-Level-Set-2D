@@ -1788,18 +1788,44 @@ void Mesh::advect_RK_WENO_periodic(){
       if( MLS_data(x_cell_index,y_cell_index).phi < 0){
 	new_phi =-1* double(std::min(distance,fabs(current_phi)));    
 	MLS_data(x_cell_index,y_cell_index).phi = new_phi;
+	
+	
       } else if(MLS_data(x_cell_index,y_cell_index).phi > 0){
 	new_phi = double(std::min(distance,fabs(current_phi)));    
 	MLS_data(x_cell_index,y_cell_index).phi = new_phi;
       }
+      
+      for(int x_it = -2; x_it < 3; ++x_it){
+	for(int y_it = -2; y_it < 3; ++y_it ){
+	  
+	  distance = sqrt((x_dist+x_it*dx- marker.x_coord)*(x_dist+x_it*dx - marker.x_coord) \
+			  + (y_dist+y_it*dy - marker.y_coord)*(y_dist+y_it*dy - marker.y_coord));
+
+	  if(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi < 0){
+	    
+	    MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi = \
+	      -1*std::min(distance,fabs(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi));
+	  
+	  }else if(MLS_data((x_cell_index+x_it),(y_cell_index+y_it)).phi > 0){
+	    
+	    MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi = \
+	      std::min(distance,fabs(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi));
+	  }
+
+
+	}
+      }
       //-------------------------------------------------------------------------
+      
       
       //----------FINDING NEIGHBOURING CELLS-------------------------------------
       
+      /*
       //std::cout << "The current cell has index : i " <<x_cell_index << " and j " << y_cell_index << std::endl;
       //std::cout << "This corresponds to node at x : " << x_dist << " and y : " << y_dist << std::endl; 
       x_quad = marker.x_coord-x_dist;
       y_quad = marker.y_coord-y_dist;
+      
 
       if(x_quad >= 0 && y_quad >= 0){
 	//std::cout << "marker is in first quadrant : " << x_quad << "\t" << y_quad << std::endl;
@@ -1913,18 +1939,114 @@ void Mesh::advect_RK_WENO_periodic(){
 	  MLS_data(x_cell_index,y_cell_index-1).phi = std::min(distance,fabs(MLS_data((x_cell_index),y_cell_index-1).phi));
 	}
 	
+      
+      }
+      */       
+      
+    }
+
+    //Loop through the interface map. Check surrounding cells to see if they are part of either +deltax or -delta x map. If yes calculate distance. 
+    Z_area = 0;
+    marchingSquares();
+ 
+    double d_plus=100;
+    double d_plus_temp =100;//Distance from interface to plus delta x level set
+    double d_minus = 100;
+    double d_minus_temp = 100;//Distance from interface to minus delta x level set
+    std::unordered_map<std::pair<int,int>,std::vector<std::pair<Particle,Particle>>>::iterator it;
+    //std::cout << "Correcting sign" << "\n";
+    //std::cout << " There are : " << interface.bucket_count() << " interfacial cells" << "\n";
+    int x_iter,y_iter; 
+    int x_cell,y_cell;
+    double node_x, node_y;
+    for(it = interface.begin(); it != interface.end(); ++it){
+      // std::cout << " this is cell : " << (*it).first.first << " " << it->first.first << "\n";
+      x_iter = it->first.first;
+      y_iter = it->first.second;
+
+      node_x = x_cell_axis(x_iter);
+      node_y = y_cell_axis(y_iter);
+      Particle node(node_x,node_y);
+      Particle p1,p2;
+      
+      
+      for(int j = 0; j > 3; j++ ){
+	for(int i = 0; i > 3; i++){
+	  x_cell = x_iter+i;
+	  y_cell = y_iter+j;
+	  std::pair<int,int> coords(x_cell,y_cell);
+	  if(plus_dx_LS.find(coords) == interface.end()){
+	    std::cout << " key not valid" << "\n";
+	  }else{
+	    auto plus_it = plus_dx_LS.find(coords);
+	    p1.x_coord = plus_it->second[0].first.x_coord;
+	    p1.y_coord = plus_it->second[0].first.y_coord;
+	    p2.x_coord = plus_it->second[0].second.x_coord;
+	    p2.y_coord = plus_it->second[0].second.y_coord;
+	    
+	    d_plus_temp = minimum_distance(p1,p2,node);
+	    if(fabs(d_plus_temp) < fabs(d_plus)){
+	      d_plus = d_plus_temp;
+	    }
+	    
+	  }
+
+	}
 
       }
       
-      
-      //-------------------------------------------------------------------------
-      
-      //-------------CREATING VECTOR OF INTERFACE CELL NODES ---------------
-      node_particle.x_coord = x_dist;
-      node_particle.y_coord = y_dist;
-      interface_nodes.push_back(node_particle);
-      //--------------------------------------------------------------------
-      
+      for(int j = 0; j > 3; j++ ){
+	for(int i = 0; i > 3; i++){
+	  x_cell = x_iter+i;
+	  y_cell = y_iter+j;
+	  std::pair<int,int> coords(x_cell,y_cell);
+	  if(minus_dx_LS.find(coords) == interface.end()){
+	    std::cout << " key not valid" << "\n";
+	  }else{
+	    auto minus_it = minus_dx_LS.find(coords);
+	    //iter returns key value pair. the value is a vector. Each element in the vector is a pair of point/particles. 
+	    p1.x_coord = minus_it->second[0].first.x_coord;
+	    p1.y_coord = minus_it->second[0].first.y_coord;
+	    p2.x_coord = minus_it->second[0].second.x_coord;
+	    p2.y_coord = minus_it->second[0].second.y_coord;
+	    
+	    d_minus_temp = minimum_distance(p1,p2,node);
+	    if(fabs(d_minus_temp) < fabs(d_minus)){
+	      d_minus = d_minus_temp;
+	    }
+	    
+	  }
+
+	}
+
+      }
+      double  coeff1,coeff2;
+      double phi1,phi2,phi3,phi4;
+      if(d_minus < d_plus){
+	coeff1 = d_minus - dx;
+	phi1 = MLS_data(x_iter,y_iter).phi;
+	//Overall result should be negattive independent of current sign value of data
+	MLS_data(x_iter,y_iter).phi=std::copysign( MLS_data(x_iter,y_iter).phi,coeff1);
+	phi2 = MLS_data(x_iter,y_iter).phi;
+	
+	if (phi1 != phi2){
+	  //std::cout << "There has been a sign change from :" << phi1 <<" to " << phi2 <<"\n";
+	}
+      }else{
+	phi3 = MLS_data(x_iter,y_iter).phi;
+	coeff2 = dx-d_plus;
+	//Overall result should be positive independent of current sign value of data
+ 	MLS_data(x_iter,y_iter).phi=std::copysign( MLS_data(x_iter,y_iter).phi,coeff2);
+	phi4 = MLS_data(x_iter,y_iter).phi;
+	if (phi3 != phi4){
+	  //std::cout << "There has been a sign change from :" << phi3 <<" to " << phi4 <<"\n";
+	}
+      }
+
+      interface.clear();
+      plus_dx_LS.clear();
+      minus_dx_LS.clear();
+
     }
     
     //---------------UPDATE SIGN OF INTERFACIAL NODES ----------------------------
@@ -1944,13 +2066,15 @@ void Mesh::advect_RK_WENO_periodic(){
 
 
   void Mesh::marchingSquares(){
+    
+    //std::cout << "Inside marchingSquares function" << std::endl;
     double zero_threshold = 0.0;
-    double plus_delta_x_threshold = dx;
+    double plus_delta_x_threshold = 1*dx;
     double minus_delta_x_threshold = -1*dx;
     int case_zero;
     int case_plus_x;
     int case_minus_x;
-    std::vector<std::pair <double,double>> zero_pair,plus_pair,minus_pair;
+    std::vector<std::pair<Particle,Particle>> zero_pair,plus_pair,minus_pair;
     double vert1,vert2,vert3,vert4; // There are the corners of each cell name anticlockwise top right = 1.
     // std::cout << "Inside marching squares function" << std::endl;
     //Go through each of the squares.
@@ -1973,25 +2097,27 @@ void Mesh::advect_RK_WENO_periodic(){
 	plus_pair = squareReconstruction(case_plus_x,i,j,vert1,vert2,vert3,vert4,plus_delta_x_threshold);
 	
 	std::pair<int,int> key_index(i,j);
-
-	interface.insert({key_index,zero_pair});
-	minus_dx_LS.insert({key_index,minus_pair});
-	plus_dx_LS.insert({key_index,plus_pair});
+	if(case_zero != 0 && case_zero !=15){
+	  interface.insert({key_index,zero_pair});
+	}
+	if(case_minus_x != 0 && case_minus_x != 15){
+	  minus_dx_LS.insert({key_index,minus_pair});
+	}
+	if(case_plus_x != 0 && case_plus_x != 15){
+	  plus_dx_LS.insert({key_index,plus_pair});
+	}
 
 	}
     }
-    //Check for each threshold-determined with case we are dealing with.
-    //
-    //Check the different cases
-    //update the maps as required.
-  }
 
-  int Mesh::Case(double threshold, double vert1,double vert2,double vert3,double vert4, double threshold){
+  }//End of fcn
+
+  int Mesh::Case(double threshold, double vert1,double vert2,double vert3,double vert4){
    
     int case_output = 0;
     
-    if(vert1 > threshold){ case_output += 1 ;}
-    if(vert2 > threshold){ case_output += 2 ;}
+    if(vert2 > threshold){ case_output += 1 ;}
+    if(vert1 > threshold){ case_output += 2 ;}
     if(vert3 > threshold){ case_output += 8 ;}  
     if(vert4 > threshold){ case_output += 4 ;}
   
@@ -1999,42 +2125,444 @@ void Mesh::advect_RK_WENO_periodic(){
     return case_output;
   }
 
-  std::vector<std::pair<double,double>> Mesh::squareReconstruction(int Case, int i ,int j,double v1,double v2,double v3,double v4,double threshold){
+  std::vector<std::pair<Particle,Particle>> Mesh::squareReconstruction(int Case, int x_iter ,int y_iter,double v1,double v2,double v3,double v4,double threshold){
 
-    std::vector<std::pair<double,double>> output;
+    //std::cout <<"Inside squareReconstruction" << std::endl;
+    std::vector<std::pair<Particle,Particle>> output;
     //the first member of the pair is the gradient of the line, the second one a point on the line.
-    std::pair<double,double> values;
+    std::pair<Particle,Particle> values;
     double a1,a2,a3,a4;
+    Particle p1,p2,p3,p4;
 
     if(Case == 0){
+      //std::cout << "This is case 0 " << "\n";
       output.resize(1);
-      values.first = -1;
-      values.second = -1;
+      p1.x_coord = -1;
+      p1.y_coord = -1;
+      values.first = p1;
+      values.second = p1;
       output.push_back(values);
+      if(threshold == 0){
+      Z_area += 0.0;
+      }
     }else if(Case == 15){
+      //std::cout << " Case fifteen" << "\n";
       output.resize(1);
-      values.first = -1;
-      values.second = -1;
+      p1.x_coord = -1;
+      p1.y_coord = -1;
+      values.first = p1;
+      values.second = p1;
       output.push_back(values);
+      if(threshold == 0){      Z_area += dx*dy;}
     }else if(Case == 1){
-      a1 = (v1-threshold)/(v1-v2);
+      //std::cout << " Case one" << "\n";
+      a1 = (v2-threshold)/(v2-v1);
+      a2 = (v2-threshold)/(v2-v3);
+       
+      p1.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a1*dx);
+      p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+      
+      p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+      p2.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a2*dy);
+          
+      values.first = p1;
+      values.second = p2;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      if(threshold == 0){      Z_area += dx*dy*0.5*a1*a2;}
+      
     }else if(Case == 2){
-    
+      //std::cout << " Case two" << "\n";
+      a1 = (v1-threshold)/(v1-v2);
+      a4 = (v1-threshold)/(v1-v4);
+       
+      p1.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a1*dx);
+      p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+
+      p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+      p4.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a4*dy);
+                  
+      values.first = p1;
+      values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      
+      if(threshold == 0){ Z_area += dx*dy*0.5*a1*a4;}
+
     }else if(Case == 3){
+      //std::cout << " Case three" << "\n";
+      a2 = (v2-threshold)/(v2-v3);
+      a4 = (v1-threshold)/(v1-v4);
+       
+      p1.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+      p1.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a4*dy);
+
+      p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+      p2.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a2*dy);
+                  
+      values.first = p1;
+      values.second = p2;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      
+      if(threshold == 0){ Z_area += dx*dy*(a2 + 0.5*(a4-a2));}
+      
     }else if(Case == 4){
+      //std::cout << " Case four" << "\n";
+      a4 = (v4-threshold)/(v4-v1);
+      a3 = (v4-threshold)/(v4-v3);
+       
+      p3.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a3*dx);
+      p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+
+      p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+      p4.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a4*dy);
+                  
+      values.first = p3;
+      values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      
+      if(threshold == 0){ Z_area += dx*dy*0.5*a3*a4;}
+     
     }else if(Case == 5){
-    }else if(Case == 6){    
+
+      //std::cout << "In AMBIGUOUS case five." << "\n";
+      if( MLS_data(x_iter,y_iter).phi > 0.0 ){
+	a2 = (threshold-v3)/(v2-v3);
+	a3 = (threshold-v3)/(v4-v3);
+       
+	p1.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a3*dx);
+	p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+	p1.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+	p2.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a2*dy);
+                  
+	values.first = p1;
+	values.second = p2;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+
+	a1 = (threshold-v1)/(v2-v1);
+	a4 = (threshold-v1)/(v4-v1);
+       
+	p3.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a1*dx);
+	p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+	p3.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+	p4.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a4*dy);
+                  
+	values.first = p3;
+	values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+	
+      if(threshold == 0){
+	Z_area += dx*dy*(1-0.5*(1-a1)*(1-a4)-0.5*(1-a2)*(1-a3));
+      }
+      /*
+	std::cout << "Case 5-stripe " << "\n";
+	std::cout << "The vertices are " << v1 << " " << v2 << " " << v3 << " " << v4 << "\n";
+	std::cout << "The value at the cell centre is : " << MLS_data(x_iter,y_iter).phi << "\n";
+	std::cout << "The weights are " << a1 << " "<< a2 << " "<< a3 << " " << a4 << "\n";
+	std::cout << "The cell centre is " << x_cell_axis(x_iter)<< " "<< y_cell_axis(y_iter) << "\n";
+	std::cout << "p1 : " << p1.x_coord << " " << p1.y_coord << "\n";
+	std::cout << "p2 : " << p2.x_coord << " " << p2.y_coord << "\n";
+	std::cout << "p3 : " << p3.x_coord << " " << p3.y_coord << "\n";
+	std::cout << "p4 : " << p4.x_coord << " " << p4.y_coord << "\n";
+	*/
+      }else if(MLS_data(x_iter,y_iter).phi <  0.0){
+	
+	//----------------------------------------------------
+	a1 = (v2-threshold)/(v2-v1);
+	a2 = (v2-threshold)/(v2-v3);
+       
+	p1.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a1*dx);
+	p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+	p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+	p2.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a2*dy);
+                  
+	values.first = p1;
+	values.second = p2;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+	//---------------------------------------------------
+	a3 = (v4-threshold)/(v4-v1);
+	a4 = (v4-threshold)/(v4-v3);
+       
+	p3.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a3*dx);
+	p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+	p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+	p4.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a4*dy);
+                  
+	values.first = p3;
+	values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+
+	if(threshold == 0){Z_area += dx*dy*(0.5*a1*a2 + 0.5*a3*a4);}
+	/*
+	std::cout << "Case 5- two corners " << "\n";
+	std::cout << "The vertices are " << v1 << " " << v2 << " " << v3 << " " << v4 << "\n";
+	std::cout << "The value at the cell centre is : " << MLS_data(x_iter,y_iter).phi << "\n";
+	std::cout << "The weights are " << a1 << " "<< a2 << " "<< a3 << " " << a4 << "\n";
+	std::cout << "The cell centre is " << x_cell_axis(x_iter)<< " "<< y_cell_axis(y_iter) << "\n";
+	std::cout << "p1 : " << p1.x_coord << " " << p1.y_coord << "\n";
+	std::cout << "p2 : " << p2.x_coord << " " << p2.y_coord << "\n";
+	std::cout << "p3 : " << p3.x_coord << " " << p3.y_coord << "\n";
+	std::cout << "p4 : " << p4.x_coord << " " << p4.y_coord << "\n";
+	*/
+      }
+
+
+    }else if(Case == 6){
+      //std::cout << " case six" << "\n";
+      a1 = (v1-threshold)/(v1-v2);
+      a3 = (v4-threshold)/(v4-v3);
+       
+      p1.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a1*dy);
+      p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+
+      p3.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a3*dy);
+      p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+                  
+      values.first = p1;
+      values.second = p3;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+
+      if(threshold == 0){Z_area += dx*dy*(a3 +0.5*(a1-a3));}
+      
     }else if(Case == 7){
+      //std::cout << " Case seven" << "\n";
+      a2 = (v2-threshold)/(v2-v3);
+      a3 = (v4-threshold)/(v4-v3);
+       
+      p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+      p2.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a2*dx);;
+
+      p3.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1-a2*dy);;
+      p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+                  
+      values.first = p2;
+      values.second = p3;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      
+      if(threshold == 0){Z_area += dx*dy*(1-0.5*(1-a2)*(1-a3));}
+      /*
+      std::cout << "Case seven " << "\n";
+      std::cout << "The vertices are " << v1 << " " << v2 << " " << v3 << " " << v4 << "\n";
+      std::cout << "The weights are " << a2 << " " << a4 << "\n";
+      std::cout << "The cell centre is " << x_cell_axis(x_iter)<< " "<< y_cell_axis(y_iter) << "\n";
+      std::cout << "p1 : " << p1.x_coord << " " << p1.y_coord << "\n";
+      std::cout << "p2 : " << p2.x_coord << " " << p2.y_coord << "\n";
+      std::cout << "The gradient is " << grad << " the norm : " << norm << "\n";
+      */
     }else if(Case == 8){
+      //std::cout << " Case eight" << "\n";
+      a2 = (v3-threshold)/(v3-v2);
+      a3 = (v3-threshold)/(v3-v4);
+       
+      p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+      p2.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a2*dx);
+    
+      p3.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a3*dy);
+      p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+                  
+      values.first = p2;
+      values.second = p3;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      if(threshold == 0){Z_area += dx*dy*(0.5*a2*a3);}
+      
     }else if(Case == 9){
+      //std::cout << " Case nine" << "\n";
+      a1 = (v2-threshold)/(v2-v1);
+      a3 = (v3-threshold)/(v3-v4);
+       
+      p1.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a1*dy);
+      p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+
+      p3.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a3*dx);
+      p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+                  
+      values.first = p1;
+      values.second = p3;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      
+      if(threshold == 0){ Z_area += dx*dy*(a1 -0.5*(a3-a1));}
+
     }else if(Case == 10){
+      //std::cout << "In ambiguous case 10 " << "\n";
+      if(MLS_data(x_iter,y_iter).phi > 0.0){
+	a1 = (threshold-v2)/(v1-v2);
+	a2 = (threshold-v2)/(v4-v2);
+       
+	p1.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a1*dx);
+	p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+	p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+	p2.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a2*dy);
+
+	values.first = p1;
+	values.second = p2;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+      
+	a3 = (threshold-v4)/(v3-v4);
+	a4 = (threshold-v4)/(v1-v4);
+       
+	p3.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a3*dx);
+	p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+	p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+	p4.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a4*dy);
+                  
+	values.first = p3;
+	values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+      if(threshold == 0){
+	Z_area += dx*dy*(1-0.5*((1-a1)*(1-a2))-0.5*((1-a3)*(1-a4)));
+      }	
+	/*
+	std::cout << "Case 10 cenral stripe " << "\n";
+	std::cout << "The vertices are " << v1 << " " << v2 << " " << v3 << " " << v4 << "\n";
+	std::cout << "The value at the cell centre is : " << MLS_data(x_iter,y_iter).phi << "\n";
+	std::cout << "The weights are " << a1 << " "<< a2 << " "<< a3 << " " << a4 << "\n";
+	std::cout << "The cell centre is " << x_cell_axis(x_iter)<< " "<< y_cell_axis(y_iter) << "\n";
+	std::cout << "p1 : " << p1.x_coord << " " << p1.y_coord << "\n";
+	std::cout << "p2 : " << p2.x_coord << " " << p2.y_coord << "\n";
+	std::cout << "p3 : " << p3.x_coord << " " << p3.y_coord << "\n";
+	std::cout << "p4 : " << p4.x_coord << " " << p4.y_coord << "\n";
+	*/
+	
+      }else if(MLS_data(x_iter,y_iter).phi < 0.0){
+	
+	a1 = (v1-threshold)/(v1-v2);
+	a4 = (v1-threshold)/(v1-v4);
+       
+	p1.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a1*dx);
+	p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+	p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+	p4.y_coord = (y_cell_axis(y_iter)+0.5*dy)*(1-a4*dy);
+
+	values.first = p1;
+	values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+      
+	a2 = (v3-threshold)/(v3-v2);
+	a3 = (v3-threshold)/(v3-v4);
+       
+	p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+	p2.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a3*dy);
+
+	p3.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a4*dx);
+	p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+                  
+	values.first = p3;
+	values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+	output.push_back(values);
+	if(threshold == 0){Z_area += dx*dy*(0.5*a1*a4+0.5*a2*a3);}
+	/*
+	std::cout << "Case 10- two corners " << "\n";
+	std::cout << "The vertices are " << v1 << " " << v2 << " " << v3 << " " << v4 << "\n";
+	std::cout << "The value at the cell centre is : " << MLS_data(x_iter,y_iter).phi << "\n";
+	std::cout << "The weights are " << a1 << " "<< a2 << " "<< a3 << " " << a4 << "\n";
+	std::cout << "The cell centre is " << x_cell_axis(x_iter)<< " "<< y_cell_axis(y_iter) << "\n";
+	std::cout << "p1 : " << p1.x_coord << " " << p1.y_coord << "\n";
+	std::cout << "p2 : " << p2.x_coord << " " << p2.y_coord << "\n";
+	std::cout << "p3 : " << p3.x_coord << " " << p3.y_coord << "\n";
+	std::cout << "p4 : " << p4.x_coord << " " << p4.y_coord << "\n";
+	*/
+      }
+      
     }else if(Case == 11){
+      //std::cout << " Case eleven" << "\n";
+      a3 = (v3-threshold)/(v3-v4);
+      a4 = (v1-threshold)/(v1-v4);
+       
+      p3.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a3*dx);
+      p3.y_coord = (y_cell_axis(y_iter)-0.5*dy);
+
+      p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+      p4.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a4*dy);
+                  
+      values.first = p3;
+      values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      if(threshold == 0){ Z_area += dx*dy*(1-0.5*(1-a4)*(1-a3));}
+      //std::cout << "In case eleven: " << "\n";
     }else if(Case == 12){
+
+      a2 = (v3-threshold)/(v3-v2);
+      a4 = (v4-threshold)/(v4-v1);
+       
+      p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+      p2.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a2*dy);
+
+      p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+      p4.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a4*dy);
+                  
+      values.first = p2;
+      values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      if(threshold == 0){ Z_area += dx*dy*(a2 + 0.5*(a4-a2));}
+
     }else if(Case == 13){
+      //std::cout << " Case thirteen" << "\n";
+      a1 = (v2-threshold)/(v2-v1);
+      a4 = (v4-threshold)/(v4-v1);
+       
+      p1.x_coord = (x_cell_axis(x_iter)-0.5*dx)*(1+a1*dx);
+      p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);      
+      
+      p4.x_coord = (x_cell_axis(x_iter)+0.5*dx);
+      p4.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a4*dy);
+                  
+      values.first = p1;
+      values.second = p4;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      if(threshold == 0){ Z_area += dx*dy*(1-0.5*(1-a1)*(1-a4));}
+      
     }else if(Case == 14){
+      //std::cout << " Case fourteen" << "\n";
+
+      a1 = (v1-threshold)/(v1-v2);
+      a2 = (v3-threshold)/(v3-v2);
+       
+      p1.x_coord = (x_cell_axis(x_iter)+0.5*dx)*(1-a1*dx);
+      p1.y_coord = (y_cell_axis(y_iter)+0.5*dy);
+
+      p2.x_coord = (x_cell_axis(x_iter)-0.5*dx);
+      p2.y_coord = (y_cell_axis(y_iter)-0.5*dy)*(1+a2*dy);
+                  
+      values.first = p1;
+      values.second = p2;//This is a particle object not a double -- need to change signature of function. 
+      output.push_back(values);
+      if(threshold == 0){ Z_area +=dx*dy*(1-0.5*(1-a1)*(1-a2));}
     }
+    //std::cout <<"The current area is: " << Z_area << "\n";
     return output;
     
   }
 
+  double Mesh::minimum_distance (Particle p1, Particle p2, Particle node){
+    //Return minimum distance between line segment p1p2 and the point node 
+    Particle a,b;
+    const double l2 = distance_squared(p1,p2);
+    
+    a.x_coord = node.x_coord-p1.x_coord;
+    a.y_coord = node.y_coord-p1.y_coord;
+
+    b.x_coord = p2.x_coord-p1.x_coord;
+    b.y_coord = p2.y_coord-p1.y_coord;
+
+    //Consider the line extending the segment parameterized as v+t(w-v)
+    //We find the projection of point p onto the line
+    //It falls where t = [(p-v).(W-V)]/|w-v|^2;
+    const double t = dot_prod(a,b)/l2;
+    if(t < 0.0) return dist(node,p1);//Beyond the "v" end of the segment
+    if(t > 0.0) return dist(node,p2);//Beyond the "w" end of the segment
+    Particle projection;
+    projection.x_coord = p1.x_coord + t *(p2.x_coord-p1.x_coord);
+    projection.y_coord = p1.y_coord + t *(p2.y_coord-p1.y_coord);
+  }
+  
+  double Mesh::dist(Particle p1, Particle p2){
+    return sqrt((p1.x_coord-p2.x_coord)*(p1.x_coord-p2.x_coord) - (p1.y_coord-p2.y_coord)*(p1.y_coord-p2.y_coord)); 
+  
+  }
+  
+  double Mesh::distance_squared(Particle p1, Particle p2){
+    return (p1.x_coord-p2.x_coord)*(p1.x_coord-p2.x_coord) - (p1.y_coord-p2.y_coord)*(p1.y_coord-p2.y_coord); 
+  }
+
+  double Mesh::dot_prod(Particle p1,Particle p2){
+    return (p1.x_coord*p2.x_coord + p1.y_coord*p2.y_coord);
+  }
 }//End of NAMESPACE MLS

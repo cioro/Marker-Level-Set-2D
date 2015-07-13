@@ -42,6 +42,7 @@ namespace MLS{
     int iter_counter;
     int numMarkers;
  
+    double Z_area;
 
     blitz::Array<Cell,2> MLS_data;
     blitz::Array<double,1> xaxis;
@@ -50,9 +51,9 @@ namespace MLS{
     blitz::Array<double,1> y_cell_axis;
     std::vector<Particle> MLS_markers;
 
-    std::unordered_map<std::pair<int,int>,std::vector<std::pair<double,double>>> interface;
-    std::unordered_map<std::pair<int,int>,std::vector<std::pair<double,double>>> plus_dx_LS;
-    std::unordered_map<std::pair<int,int>,std::vector<std::pair<double,double>>> minus_dx_LS;
+    std::unordered_map<std::pair<int,int>,std::vector<std::pair<Particle,Particle>>> interface;
+    std::unordered_map<std::pair<int,int>,std::vector<std::pair<Particle,Particle>>> plus_dx_LS;
+    std::unordered_map<std::pair<int,int>,std::vector<std::pair<Particle,Particle>>> minus_dx_LS;
 
     double (*speed_x)(double x, double y, double t,double T);
     double (*speed_y)(double x, double y, double t,double T);
@@ -91,7 +92,11 @@ namespace MLS{
     void correction1();
     void marchingSquares();
     int Case(double threshold, double v1, double v2, double v3, double v4);
-    std::vector<std::pair<double,double>> squareReconstruction(int,int,int,double,double,double,double);
+    std::vector<std::pair<Particle,Particle>> squareReconstruction(int,int,int,double,double,double,double,double);
+    double dist(Particle,Particle);
+    double distance_squared(Particle,Particle);
+    double dot_prod(Particle,Particle);
+    double minimum_distance(Particle,Particle,Particle);
   };
 }
 #endif
