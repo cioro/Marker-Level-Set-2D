@@ -1768,6 +1768,7 @@ void Mesh::advect_RK_WENO_periodic(){
     double x_quad,y_quad;
     //Update Distance
     //for each marker mk
+
     for(auto &marker : MLS_markers){
       
       //-------------------UPDATE Distance PROCEDURE--------------------------------
@@ -1782,34 +1783,48 @@ void Mesh::advect_RK_WENO_periodic(){
      
       distance = sqrt((x_dist- marker.x_coord)*(x_dist - marker.x_coord) + (y_dist - marker.y_coord)*(y_dist - marker.y_coord));
       current_phi = MLS_data(x_cell_index,y_cell_index).phi;
-      
-      //abs(phi(i,j))=min(abs(phi(i,j),dist(node,mk)  
 
       if( MLS_data(x_cell_index,y_cell_index).phi < 0){
+
 	new_phi =-1* double(std::min(distance,fabs(current_phi)));    
 	MLS_data(x_cell_index,y_cell_index).phi = new_phi;
-	
-	
+	if(new_phi!=current_phi){
+	  std::cout << "Redistancing has taken place " << current_phi << " to " << new_phi << "\n";
+	}
       } else if(MLS_data(x_cell_index,y_cell_index).phi > 0){
 	new_phi = double(std::min(distance,fabs(current_phi)));    
 	MLS_data(x_cell_index,y_cell_index).phi = new_phi;
+	if(new_phi!=current_phi){
+	  std::cout << "Redistancing has taken place" << current_phi << " to " << new_phi << "\n";
+	}
+
       }
       
       for(int x_it = -2; x_it < 3; ++x_it){
 	for(int y_it = -2; y_it < 3; ++y_it ){
 	  
+	  current_phi = MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi;
+
 	  distance = sqrt((x_dist+x_it*dx- marker.x_coord)*(x_dist+x_it*dx - marker.x_coord) \
 			  + (y_dist+y_it*dy - marker.y_coord)*(y_dist+y_it*dy - marker.y_coord));
-
+	  
 	  if(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi < 0){
 	    
-	    MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi = \
-	      -1*std::min(distance,fabs(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi));
-	  
+	    
+	    new_phi = -1*std::min(distance,fabs(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi));
+	    MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi = new_phi;
+	    if(new_phi!=current_phi){
+	      std::cout << "Redistancing has taken place" << current_phi << " to " << new_phi << "\n";
+	    }
+
 	  }else if(MLS_data((x_cell_index+x_it),(y_cell_index+y_it)).phi > 0){
 	    
-	    MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi = \
-	      std::min(distance,fabs(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi));
+	    new_phi = std::min(distance,fabs(MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi));
+	    MLS_data(x_cell_index+x_it,y_cell_index+y_it).phi = new_phi;
+	    if(new_phi!=current_phi){
+	      std::cout << "Redistancing has taken place" << current_phi << " to " << new_phi << "\n";
+	    }
+
 	  }
 
 
@@ -1975,7 +1990,7 @@ void Mesh::advect_RK_WENO_periodic(){
 	  x_cell = x_iter+i;
 	  y_cell = y_iter+j;
 	  std::pair<int,int> coords(x_cell,y_cell);
-	  if(plus_dx_LS.find(coords) == interface.end()){
+	  if(plus_dx_LS.find(coords) == plus_dx_LS.end()){
 	    std::cout << " key not valid" << "\n";
 	  }else{
 	    auto plus_it = plus_dx_LS.find(coords);
@@ -2000,7 +2015,7 @@ void Mesh::advect_RK_WENO_periodic(){
 	  x_cell = x_iter+i;
 	  y_cell = y_iter+j;
 	  std::pair<int,int> coords(x_cell,y_cell);
-	  if(minus_dx_LS.find(coords) == interface.end()){
+	  if(minus_dx_LS.find(coords) == minus_dx_LS.end()){
 	    std::cout << " key not valid" << "\n";
 	  }else{
 	    auto minus_it = minus_dx_LS.find(coords);
@@ -2030,7 +2045,7 @@ void Mesh::advect_RK_WENO_periodic(){
 	phi2 = MLS_data(x_iter,y_iter).phi;
 	
 	if (phi1 != phi2){
-	  //std::cout << "There has been a sign change from :" << phi1 <<" to " << phi2 <<"\n";
+	  std::cout << "There has been a sign change from :" << phi1 <<" to " << phi2 <<"\n";
 	}
       }else{
 	phi3 = MLS_data(x_iter,y_iter).phi;
@@ -2039,7 +2054,7 @@ void Mesh::advect_RK_WENO_periodic(){
  	MLS_data(x_iter,y_iter).phi=std::copysign( MLS_data(x_iter,y_iter).phi,coeff2);
 	phi4 = MLS_data(x_iter,y_iter).phi;
 	if (phi3 != phi4){
-	  //std::cout << "There has been a sign change from :" << phi3 <<" to " << phi4 <<"\n";
+	  std::cout << "There has been a sign change from :" << phi3 <<" to " << phi4 <<"\n";
 	}
       }
 

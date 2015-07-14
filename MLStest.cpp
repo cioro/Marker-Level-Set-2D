@@ -14,11 +14,11 @@
 
 //Speed functions
 double Z_speed_x(double x, double y, double t, double T){
-  return  ((M_PI/314)*(y-0.5));// ((M_PI/314)*(0.5-y));
+  return ((M_PI/314)*(y-0.5));// ((M_PI/314)*(0.5-y)); //
 }
 
 double Z_speed_y(double x, double y, double t, double T){
-  return ((M_PI/314)*(0.5-x));//((M_PI/314)*(x-0.5));
+  return ((M_PI/314)*(0.5-x));//((M_PI/314)*(x-0.5));//
 }
 
 double spiral_speed_x(double x, double y, double t,double T){
@@ -214,6 +214,7 @@ int main(int argc, char* argv[]){
     // m.advect_WENO();
     // m.advect_RK_WENO_periodic();
     // m.advect_RK();
+    m.correction1();
     m.advect_RK_WENO();
     m.applyBC();
     m.advect_markers();
@@ -231,6 +232,7 @@ int main(int argc, char* argv[]){
     }
  //std::cout<< m.time << "\n";
  // m.save_to_file(Snap);
+ m.correction1();
  m.vtk_output(Snap);
  m.vtk_output_marker(Snap);
  std::cout << "The final area is " << m.Z_area << "\n";
