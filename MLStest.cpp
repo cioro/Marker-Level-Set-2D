@@ -11,6 +11,7 @@
 #include<assert.h>
 #include<string>
 #include<blitz/array.h>
+std::pair<double, double> signed_distance_ellipse(double a, double b, double x, double y);
 
 //Speed functions
 double Z_speed_x(double x, double y, double t, double T){
@@ -175,6 +176,43 @@ MLS::Cell level_set_circle(double x, double y,double t,double T){
   return cell;
 }
 
+MLS::Cell ellipse(double x, double y,double t,double T){
+  
+  MLS::Cell cell;
+  double phi = 0.0;
+  double r = 1;
+  double x_0 = 0.5;
+  double y_0 = 0.75;
+  //  double c = ;
+  double a = 0.7;
+  double b = 0.0875;//sqrt(a*a-c*c);  
+
+  //caLL ELLIPSE FUNCTION.
+  //first is the angle, second is the distance between the point and the zero level set ellipse.
+  phi = -1*signed_distance_ellipse(a,b,x-x_0,y-y_0).second; 
+  /*
+
+  //Inside the circle-solid
+  if( (((x-x_0)*(x-x_0)/(a*a))+((y-y_0)*(y-y_0)/(b*b))) <= (r*r) ){
+    
+    phi = r - sqrt(((x-x_0)*(x-x_0)/(a*a))+((y-y_0)*(y-y_0)/(b*b)));
+    
+  }else if( (((x-x_0)*(x-x_0)/(a*a))+((y-y_0)*(y-y_0)/(b*b))) > (r*r) ){
+
+    phi = r - sqrt(((x-x_0)*(x-x_0)/(a*a))+((y-y_0)*(y-y_0)/(b*b)));
+  
+  }else{
+    std::cout << "CIRCLE LEVEL_SET. error in setting phi" << "\n";
+    }*/
+  cell.phi = phi;
+  cell.phi_u = (-2*M_PI*sin(M_PI*x)*sin(2*M_PI*y)*cos(M_PI*t/T));
+  cell.phi_v = (2*M_PI*sin(M_PI*y)*sin(2*M_PI*x)*cos(M_PI*t/T));
+
+  return cell;
+}
+
+
+
 int main(int argc, char* argv[]){
 
   //Set parameters cfl, x_min,x_max
@@ -187,56 +225,64 @@ int main(int argc, char* argv[]){
   double cfl=0.6;
   double T_max = 628.3185;
   int numMarkers = ncells*4;
+ 
   //Construct Level set mesh
   MLS::Mesh m(numMarkers,T_max,ncells, nGhost, x_min,x_max, y_min, y_max, cfl, Z_speed_x, Z_speed_y,Zalesak_disk);
   m.applyBC();
   
-  //m.marchingSquares();
+  std::string SnapName = "Snap_Z_disk_";
+  std::stringstream ss;
+  ss << SnapName << ncells << "_" ;
+  std::string Snap = ss.str();
+
+
   
-  m.correction1();
-  
-  std::string Snap = "Snap_";
-  //m.save_to_file(Snap);
   m.vtk_output(Snap);
   m.vtk_output_marker(Snap);
+  //for(int i = 0 ; i < 40; ++i){
+  //m.iter_counter++;
+  //m.correction1();
+  // m.vtk_output(Snap);
+  //m.vtk_output_marker(Snap);
   
+  // m.iter_counter++;  
+  //m.signCorrection();
+  //m.vtk_output(Snap);
+  //m.vtk_output_marker(Snap);
+  //}
+  
+  
+  std::cout << " Initialisatin complete. " << m.iter_counter << "\n";
   //Evolution loop
-  
-   
- for(double t = 0; t < T_max; t += m.dt){
-
+  for(double t = 0; t < T_max; t += m.dt){
+    m.iter_counter++;
+    //std::cout << " At iter " << m.iter_counter << "\n";
+    
     m.Calculate_dt();
     if(m.time+m.dt > T_max){
       m.dt = T_max-m.time;
     }
-    //std::cout <<m.time << "\n";
-    //m.advect_level_set();    
-    // m.advect_WENO();
-    // m.advect_RK_WENO_periodic();
+    
     // m.advect_RK();
-    m.correction1();
     m.advect_RK_WENO();
     m.applyBC();
     m.advect_markers();
-    m.correction1();
-    //if((m.iter_counter%10) == 0){
-      //m.save_to_file(Snap);
-      m.vtk_output(Snap);
-      m.vtk_output_marker(Snap);
-      //}
+
+     /*
+       for(int i = 0; i < 20; ++i){
+       m.correction1();
+       m.signCorrection();
+       }*/
+
+     
+    // m.marchingSquares();
+    m.vtk_output(Snap);
+    m.vtk_output_marker(Snap);
     
     m.time += m.dt;
-  
-    m.iter_counter++;
-     std::cout << "The area is " << m.Z_area << "\n";
+    //std::cout << "\n";
     }
- //std::cout<< m.time << "\n";
- // m.save_to_file(Snap);
- m.correction1();
- m.vtk_output(Snap);
- m.vtk_output_marker(Snap);
- std::cout << "The final area is " << m.Z_area << "\n";
-  
- return 0;
+
+  std::cout << "The final area is " << m.Z_area << "\n";
   
 }

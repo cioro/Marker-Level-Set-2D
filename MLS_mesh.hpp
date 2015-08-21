@@ -1,6 +1,7 @@
 #ifndef MLS2D_H
 #define MLS2D_H
 
+
 #include<vector>
 #include<initializer_list>
 #include<functional>
@@ -50,6 +51,14 @@ namespace MLS{
     blitz::Array<double,1> x_cell_axis;
     blitz::Array<double,1> y_cell_axis;
     std::vector<Particle> MLS_markers;
+    std::vector<Particle> LS_minus;
+    std::vector<Particle> LS_zero;
+    std::vector<Particle> LS_plus;
+
+#ifdef DEBUG
+    std::vector<Particle> Sign_change_mark;
+#endif
+    
 
     std::unordered_map<std::pair<int,int>,std::vector<std::pair<Particle,Particle>>> interface;
     std::unordered_map<std::pair<int,int>,std::vector<std::pair<Particle,Particle>>> plus_dx_LS;
@@ -72,24 +81,30 @@ namespace MLS{
     void save_to_file(std::string name)const;
     void vtk_output(std::string filename)const;
     void vtk_output_marker(std::string filename)const;
-
+    void vtk_output_marker(std::vector<Particle> particle_vec, std::string filename)const;
     double D_minus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
     double D_plus(int i, int j, std::string dir,const blitz::Array<double,2> & input);
     double WENO(int i, int j, std::string stencil, std::string dir,const blitz::Array<double,2> & input);
+    double HOUC(int i, int j, std::string stencil, std::string dir,const blitz::Array<double,2> & input);
     blitz::Array<double,2> spatial_WENO(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_WENO_X(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_HOUC_X(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_WENO_X_periodic(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_WENO_Y(blitz::Array<double,2> input);
+    blitz::Array<double,2> spatial_HOUC_Y(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_WENO_Y_periodic(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first_X(blitz::Array<double,2> input);
     blitz::Array<double,2> spatial_first_Y(blitz::Array<double,2> input);
     void advect_RK();
     void advect_RK_WENO();
+    void advect_RK_WENO_split();
+    void advect_RK_HOUC();
     void advect_RK_WENO_periodic();
     void advect_markers();
     void RK(Particle & p);
     void correction1();
+    void signCorrection();
     void marchingSquares();
     int Case(double threshold, double v1, double v2, double v3, double v4);
     std::vector<std::pair<Particle,Particle>> squareReconstruction(int,int,int,double,double,double,double,double);
@@ -97,6 +112,10 @@ namespace MLS{
     double distance_squared(Particle,Particle);
     double dot_prod(Particle,Particle);
     double minimum_distance(Particle,Particle,Particle);
-  };
+    Particle inter_point(std::pair<Particle,Particle> S1, std::pair<Particle,Particle> S2);
+    Particle minimum_distance_point (Particle p1, Particle p2, Particle node);
+    double dist2D_Segment_to_Segment( std::pair<Particle,Particle>, std::pair<Particle,Particle>); 
+    double perp(Particle u, Particle v);
+    };
 }
 #endif
